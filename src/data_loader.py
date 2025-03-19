@@ -1,6 +1,6 @@
 import os
 from collections import defaultdict
-from typing import Dict, TYPE_CHECKING
+from typing import Dict
 
 from PIL import Image
 import torch

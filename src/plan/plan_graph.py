@@ -2,7 +2,7 @@ import weakref
 from bisect import bisect_left
 from typing import Any, Dict, Optional
 
-from src.config import DEFAULT_START_TASK_NAME, GlobalMetricsConfig as mcfg
+from src.config import DEFAULT_START_TASK_NAME, GlobalMetricsConfig as Mcfg
 from src.types import TaskName, ModelName, CostInfo
 
 NodeID = int
@@ -86,10 +86,7 @@ class PlanGraph:
     def add_edge(
             self,
             source: 'PlanNode',
-            target: 'PlanNode',
-            *,
-            task_name: Optional[TaskName] = None,
-            model_name: Optional[ModelName] = None
+            target: 'PlanNode'
     ) -> 'PlanEdge':
         """
         创建一个新的 Edge（从 source 到 target）并加入当前 Graph。
@@ -97,11 +94,6 @@ class PlanGraph:
         """
         edge_id = self._next_edge_id
         self._next_edge_id += 1
-
-        if task_name is None:
-            task_name = target.task_name
-        if model_name is None:
-            model_name = target.model_name
 
         edge = PlanEdge(
             edge_id=edge_id,
@@ -238,17 +230,17 @@ class PlanNode:
         if self.costs is None:
             raise RuntimeError("Costs information is not set for this node.")
 
-        short_term_cpu_price = self.costs.short_term_cpu_memory * mcfg.cpu_short_memory_pricing_per_mb
-        short_term_gpu_price = self.costs.short_term_gpu_memory * mcfg.cpu_short_memory_pricing_per_mb
-        long_term_cpu_memory = mcfg.tools_gpu_long_term_mem[self.task_name]
-        long_term_gpu_memory = mcfg.tools_cpu_long_term_mem[self.task_name]
+        short_term_cpu_price = self.costs.short_term_cpu_memory * Mcfg.cpu_short_memory_pricing_per_mb
+        short_term_gpu_price = self.costs.short_term_gpu_memory * Mcfg.cpu_short_memory_pricing_per_mb
+        long_term_cpu_memory = Mcfg.tools_gpu_long_term_mem[self.task_name]
+        long_term_gpu_memory = Mcfg.tools_cpu_long_term_mem[self.task_name]
 
-        long_term_cpu_memory_tiers = sorted(mcfg.cpu_long_memory_pricing.keys())
-        long_term_gpu_memory_tiers = sorted(mcfg.gpu_long_memory_pricing.keys())
-        long_term_cpu_price_unit = mcfg.cpu_long_memory_pricing[
+        long_term_cpu_memory_tiers = sorted(Mcfg.cpu_long_memory_pricing.keys())
+        long_term_gpu_memory_tiers = sorted(Mcfg.gpu_long_memory_pricing.keys())
+        long_term_cpu_price_unit = Mcfg.cpu_long_memory_pricing[
             bisect_left(long_term_cpu_memory_tiers, long_term_cpu_memory)
         ]
-        long_term_gpu_price_unit = mcfg.gpu_long_memory_pricing[
+        long_term_gpu_price_unit = Mcfg.gpu_long_memory_pricing[
             bisect_left(long_term_gpu_memory_tiers, long_term_gpu_memory)
         ]
 
@@ -257,7 +249,7 @@ class PlanNode:
                 + self.costs.short_term_cpu_memory * short_term_cpu_price
                 + long_term_gpu_memory * long_term_gpu_price_unit
                 + self.costs.short_term_gpu_memory * short_term_gpu_price
-        ) + mcfg.price_per_request
+        ) + Mcfg.price_per_request
 
         self.price = price
         return price

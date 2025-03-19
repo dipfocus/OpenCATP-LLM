@@ -148,7 +148,7 @@ class Plan:
             for _, edge_ref in current_node.in_edges.items():
                 edge = edge_ref()
                 source_node = edge.source()
-                max_exec_time = max(max_exec_time_before, source_node.critical_exec_time)
+                max_exec_time_before = max(max_exec_time_before, source_node.critical_exec_time)
 
             current_node.critical_exec_time = current_node.costs.exec_time + max_exec_time_before
 

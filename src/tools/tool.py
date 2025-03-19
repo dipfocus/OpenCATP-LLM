@@ -1,13 +1,11 @@
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, Optional, Callable
 import gc
 import time
 
 import psutil
 import torch
 
-from src.config import log, cfg
-from src.model_registry import ModelConfig, MODEL_REGISTRY
-from src.types import TaskName, ModelName, CostInfo
+from src.config import ModelConfig
 from src.utils.cost import CPUMemoryMonitor
 
 
