@@ -1,0 +1,10 @@
+.idea
+**/.DS_Store/
+
+# Python 缓存文件
+__pycache__/
+*.py[cod]
+venv/
+
+/logs/
+/test/
