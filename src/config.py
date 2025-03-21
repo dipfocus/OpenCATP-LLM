@@ -6,7 +6,7 @@ from typing import Dict, Literal, Optional
 
 from loguru import logger as log
 
-from src.types import TaskName, ModelName
+from .types import TaskName, ModelName
 
 # Constants that should typically be reset based on the device environment
 HOME_DIR = '/home/wuduo/notmuch/projects/llm_tool_planning/'
