@@ -473,9 +473,10 @@ MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
     },
 }
 
+current_file_path = os.path.abspath(__file__)
 log.remove()
 log.add(sys.stdout, level='INFO', colorize=True, format=LOG_FORMAT_CONSOLE)
 log.add(
-    f'logs/{datetime.now().strftime("%Y-%m-%d")}.log',
+    f'{current_file_path}/../../logs/{datetime.now().strftime("%Y-%m-%d")}.log',
     level='DEBUG'
 )

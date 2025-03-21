@@ -6,5 +6,6 @@ __pycache__/
 *.py[cod]
 venv/
 
-/logs/
-/code_test/
+/dataset
+/logs
+/code_test

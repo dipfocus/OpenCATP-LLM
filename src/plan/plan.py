@@ -8,7 +8,7 @@ from src.config import TOOL_DEVICE_LIST
 from src.tools import tool_manager, Tool
 from src.types import TaskName, ModelName, CostInfo
 from src.utils import get_available_device
-from plan_graph import NodeID, PlanNode, PlanGraph
+from .plan_graph import NodeID, PlanNode, PlanGraph
 
 
 class Plan:
@@ -24,7 +24,7 @@ class Plan:
     price: float
     exec_time: float
 
-    def __init__(self, description: Any) -> None:
+    def __init__(self, description: Any = None) -> None:
         """
         Initialize the Plan with a PlanGraph and optional description to build the graph structure.
 
@@ -61,10 +61,10 @@ class Plan:
             )
 
             source_node = self.graph.add_node(task_name)
-            # Currently only linking the first dependency for demonstration
-            target_node = self.graph.get_or_add_node(dependencies[0])
 
-            self.graph.add_edge(source_node, target_node)
+            for dependency in dependencies:
+                target_node = self.graph.get_or_add_node(dependency)
+                self.graph.add_edge(source_node, target_node)
 
     def prepare_tools(self) -> None:
         """
@@ -105,8 +105,9 @@ class Plan:
 
     def _execute_on_graph(self, input_data: Any, method: str = 'bfs') -> None:
         """
-        Assuming the plan graph is given in the form of a topologically sorted list of nodes and edges,
+        Note: Assuming the plan graph is given in the form of a topologically sorted list of nodes and edges,
         then we can use BFS to execute the plan.
+
         Execute the plan graph with the given input data.
         By default, a BFS approach is used to traverse and compute node outputs.
 

@@ -1,20 +1,21 @@
-import re
+from typing import cast
 
 import torch
 
 from src.config import TOOL_GPU_MEMORY_ALLOC_LIMIT
+from src.types import TaskName
 
 
 def get_available_device(device_list):
     """
-    返回列表中第一个显存剩余超过 3GB 的 CUDA 设备，
-    如果都不满足则返回 "cpu"。
+    Return the first device in the list that has enough free memory.
+    If none, return "cpu".
 
-    参数：
-        device_list (list of str): 设备列表，例如 ['cuda:0', 'cuda:1']，也可以为空
+    Args:
+        device_list: List of CUDA devices to choose from.
 
-    返回：
-        str: 满足条件的 CUDA 设备，或 "cpu"
+    Returns:
+        str: The device name that has enough free memory or "cpu".
     """
 
     def qualifies(device):
@@ -24,7 +25,15 @@ def get_available_device(device_list):
     return next((d for d in device_list if qualifies(d)), "cpu")
 
 
-def normalize_name(source: str):
+def normalize_task_name(source: str) -> TaskName:
     source = source.strip()
-    source = source.replace(" ", "-").replace('_', "-")
-    return re.sub(r'(?<!^)(?=[A-Z])', '-', source).lower()
+    source = source.replace(" ", "_").lower()
+
+    # Normalize special cases
+    match source:
+        case "input_of_query":
+            source = 'input'
+        case _:
+            pass
+    target = cast(TaskName, source)
+    return target
