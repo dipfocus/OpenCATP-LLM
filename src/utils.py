@@ -2,7 +2,7 @@ from typing import cast
 
 import torch
 
-from src.config import TOOL_GPU_MEMORY_ALLOC_LIMIT
+from src.config import TOOL_GPU_MEMORY_ALLOC_LIMIT, DEFAULT_START_TASK_NAME
 from src.types import TaskName
 
 
@@ -30,9 +30,14 @@ def normalize_task_name(source: str) -> TaskName:
     source = source.replace(" ", "_").lower()
 
     # Normalize special cases
+    # fixme: name alias for backward compatibility
     match source:
         case "input_of_query":
-            source = 'input'
+            source = DEFAULT_START_TASK_NAME
+        case 'input_query':
+            source = DEFAULT_START_TASK_NAME
+        case 'colorization':
+            source = 'image_colorization'
         case _:
             pass
     target = cast(TaskName, source)
