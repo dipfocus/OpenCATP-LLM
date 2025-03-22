@@ -223,9 +223,15 @@ class Plan:
         """
         self.prepare_tools()
         log.info("Tool preparation done. Executing plan...")
-        self._execute_on_graph(input_data, cost_aware=cost_aware)
-        log.info("Plan execution done. Collecting results...")
-        results = self.collect_results()
+        try:
+            self._execute_on_graph(input_data, cost_aware=cost_aware)
+            log.info("Plan execution done. Collecting results...")
+            results = self.collect_results()
+            self.calculate_exec_time_and_save()
+            self.calculate_price_and_save()
+        except KeyError:
+            # todo: Handle invalid plan
+            raise NotImplementedError("Invalid plan detected. Please check the plan structure.")
         log.info("Cleaning up tools...")
         self.clean_tools()
         return results

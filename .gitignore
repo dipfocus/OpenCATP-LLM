@@ -7,6 +7,8 @@ __pycache__/
 venv/
 
 /dataset
+hf_cache/
+
 /logs
 /code_test
-hf_cache/
+graph.png

@@ -116,6 +116,7 @@ class PlanGraph:
         # Store the edge in the graph
         self.edges[edge_id] = edge
 
+        source.is_end_point = False
         # Both source and target hold weak references to this edge
         source.out_edges[edge_id] = weakref.ref(edge)
         target.in_edges[edge_id] = weakref.ref(edge)

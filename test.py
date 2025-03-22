@@ -10,12 +10,14 @@ from src.plan import Plan
 from src.utils import print_graph
 from src.data_loader import TaskDataset
 from src.tools import tool_manager
-
+from src.metrics.evaluator import get_image_similarity, get_bert_score, calculate_qop
 
 with open("./train_data_plan_map.json", "r") as f:
     data = json.load(f)
 
 for task_info in data.values():
+    if task_info["task_id"] != 201:
+        continue
     task_id = task_info["task_id"]
     description = task_info["task_desc_raw"]
     plans = task_info["plans"]
