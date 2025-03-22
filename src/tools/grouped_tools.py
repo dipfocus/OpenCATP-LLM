@@ -17,7 +17,7 @@ from transformers import (
     AutoModelForMaskedLM,
     DetrImageProcessor,
     DetrForObjectDetection,
-    ViTFeatureExtractor,
+    ViTImageProcessor,
     ViTForImageClassification,
     AutoImageProcessor,
     Swin2SRForImageSuperResolution,
@@ -213,7 +213,7 @@ class ImageClassificationTools(GroupedTools):
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
             case "vit-base":
-                processor = ViTFeatureExtractor.from_pretrained(
+                processor = ViTImageProcessor.from_pretrained(
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
                 model = ViTForImageClassification.from_pretrained(
@@ -260,7 +260,7 @@ class ObjectDetectionTools(GroupedTools):
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
                 model = DetrForObjectDetection.from_pretrained(
-                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
+                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache, ignore_mismatched_sizes=True
                 )
 
                 def process(input_data: DataIncludeImage, device: str) -> Any:
@@ -363,8 +363,8 @@ class ImageColorizationTools(GroupedTools):
         match model_name:
             case "siggraph17":
                 # Import third-party colorizers from a custom path
-                colorizers = import_module("github_models.colorization.colorizers")
-                cv2 = import_module("cv2")
+                from .github_models.colorization import colorizers
+                import cv2
 
                 preprocess_img = colorizers.preprocess_img
                 postprocess_tens = colorizers.postprocess_tens
@@ -609,7 +609,7 @@ class ImageCaptioningTools(GroupedTools):
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
             case "vit-gpt2":
-                processor = ViTFeatureExtractor.from_pretrained(
+                processor = ViTImageProcessor.from_pretrained(
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
                 model = VisionEncoderDecoderModel.from_pretrained(

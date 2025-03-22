@@ -9,3 +9,4 @@ venv/
 /dataset
 /logs
 /code_test
+hf_cache/

@@ -13,7 +13,7 @@ src_dir = os.path.dirname(current_file_path)
 home_dir = os.path.dirname(src_dir)
 
 # Constants that should typically be reset based on the device environment
-DATA_PATH = "/home/data/openCATP_LLM/dataset"
+DATA_PATH = "/home/data/OpenCATP_LLM/dataset"
 PRETRAINED_LLM_DIR = "/home/data/pretrained_llms/"
 
 TOOL_DEVICE_LIST = ["cuda:0", "cuda:1"]

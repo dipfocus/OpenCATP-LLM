@@ -1,7 +1,9 @@
 import json
+from src.config import DATA_PATH
 from src.plan import Plan
 from src.utils import print_graph
 from src.data_loader import TaskDataset
+from src.tools import tool_manager
 
 with open('./train_data_plan_map.json', 'r') as f:
     data = json.load(f)
@@ -14,4 +16,5 @@ for task_info in data.values():
 
 plan = Plan(plans[0])
 graph = plan.graph
-data = TaskDataset('./dataset', task_id=task_id)
+data = TaskDataset(DATA_PATH, task_id=task_id)
+tool_manager.load_models()
