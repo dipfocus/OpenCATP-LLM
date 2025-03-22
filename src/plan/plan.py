@@ -5,9 +5,9 @@ from typing import Any, Dict, Set, Deque, Tuple
 import torch
 
 from src.config import TOOL_DEVICE_LIST
-from src.tools import tool_manager, Tool
+from src.tools import Tool, tool_manager
 from src.types import TaskName, ModelName, CostInfo
-from src.utils import get_available_device
+from src.utils import get_available_device, normalize_task_name
 from .plan_graph import NodeID, PlanNode, PlanGraph
 
 
@@ -24,12 +24,12 @@ class Plan:
     price: float
     exec_time: float
 
-    def __init__(self, description: Any = None) -> None:
+    def __init__(self, plan_info: Any = None) -> None:
         """
-        Initialize the Plan with a PlanGraph and optional description to build the graph structure.
+        Initialize the Plan with a PlanGraph and optional plan_info to build the graph structure.
 
         Args:
-            description: A structure describing how to build the plan graph.
+            plan_info: A structure describing how to build the plan graph.
         """
         self.graph = PlanGraph()
         self.tools = {}
@@ -37,13 +37,13 @@ class Plan:
         self.price = 0.0
         self.exec_time = 0.0
 
-        # If description is provided, build the graph from it.
-        if description:
-            self.create_graph_from_description(description)
+        # If plan_info is provided, build the graph from it.
+        if plan_info:
+            self.create_graph_from_plan_info(plan_info)
 
-    def create_graph_from_description(self, description: Any) -> None:
+    def create_graph_from_plan_info(self, plan_info: Any) -> None:
         """
-        Create a plan graph from a description object (e.g., a list describing tasks and dependencies).
+        Create a plan graph from a plan_info object (e.g., a list describing tasks and dependencies).
 
         The format might be something like:
             [task_name, [dependency_task_name], task_name, [dependency_task_name], ...]
@@ -52,18 +52,21 @@ class Plan:
 
         Currently, an assert enforces that each task has at least one dependency.
         """
-        for i in range(0, len(description), 2):
-            task_name = description[i]
-            dependencies = description[i + 1]
+        for i in range(0, len(plan_info), 2):
+            task_name = plan_info[i]
+            dependencies = plan_info[i + 1]
 
             assert len(dependencies) >= 1, (
                 "At least one dependency required per operation."
             )
-
-            source_node = self.graph.add_node(task_name)
-
+            task_name = normalize_task_name(task_name)
+            target_node = self.graph.add_node(task_name)
             for dependency in dependencies:
-                target_node = self.graph.get_or_add_node(dependency)
+                if isinstance(dependency, list):
+                    dependency = dependency[0]
+
+                dependency = normalize_task_name(dependency)
+                source_node = self.graph.get_or_add_node(dependency)
                 self.graph.add_edge(source_node, target_node)
 
     def prepare_tools(self) -> None:

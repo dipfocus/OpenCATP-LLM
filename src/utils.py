@@ -1,8 +1,11 @@
 from typing import cast
 
+import networkx as nx
+import matplotlib.pyplot as plt
 import torch
 
 from src.config import TOOL_GPU_MEMORY_ALLOC_LIMIT, DEFAULT_START_TASK_NAME
+from src.plan.plan_graph import PlanGraph
 from src.types import TaskName
 
 
@@ -31,6 +34,9 @@ def normalize_task_name(source: str) -> TaskName:
 
     # Normalize special cases
     # fixme: name alias for backward compatibility
+    if 'input' in source:
+        source = DEFAULT_START_TASK_NAME
+
     match source:
         case "input_of_query":
             source = DEFAULT_START_TASK_NAME
@@ -42,3 +48,16 @@ def normalize_task_name(source: str) -> TaskName:
             pass
     target = cast(TaskName, source)
     return target
+
+
+def print_graph(graph: PlanGraph):
+    nodes = graph.nodes
+    edges = graph.edges
+
+    G = nx.DiGraph()
+    G.add_nodes_from(nodes)
+    for edge in edges.values():
+        G.add_edge(edge.source().node_id, edge.target().node_id)
+
+    nx.draw(G, with_labels=True, node_color='skyblue', node_size=500, font_size=10, font_weight='bold')
+    plt.show()

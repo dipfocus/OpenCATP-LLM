@@ -1,13 +1,16 @@
 from abc import ABC, abstractmethod
 from importlib import import_module
 from typing import Any, Dict, List, Tuple, Callable
+from runpy import run_path
 
+from skimage.util import img_as_ubyte
+import torch.nn.functional as F
 import torch
 import numpy as np
 
 from transformers import (
     AutoTokenizer,
-    AutoModelForQuestionAnswering,
+    # AutoModelForQuestionAnswering,
     AutoModelForSequenceClassification,
     AutoModelForSeq2SeqLM,
     AutoModelForCausalLM,
@@ -90,7 +93,7 @@ class GroupedTools(ABC):
 
     @abstractmethod
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         """
         Subclasses should return a tuple of (model, tokenizer, process).
@@ -111,7 +114,7 @@ class SentimentAnalysisTools(GroupedTools):
         self.IOFormat = ("text", "text")
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
             case "distilbert-sst2":
@@ -123,7 +126,7 @@ class SentimentAnalysisTools(GroupedTools):
                 )
 
                 def process(
-                    input_data: DataIncludeText, device: str
+                        input_data: DataIncludeText, device: str
                 ) -> DataIncludeText:
                     inputs = tokenizer(
                         input_data["text"], return_tensors="pt", padding=True
@@ -155,7 +158,7 @@ class MachineTranslationTools(GroupedTools):
         self.IOFormat = ("text", "text")
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
             case "t5-base":
@@ -167,7 +170,7 @@ class MachineTranslationTools(GroupedTools):
                 )
 
                 def process(
-                    input_data: DataIncludeText, device: str
+                        input_data: DataIncludeText, device: str
                 ) -> DataIncludeText:
                     text_batch = [
                         "translate English to German: " + sentence
@@ -206,7 +209,7 @@ class ImageClassificationTools(GroupedTools):
         self.IOFormat = ("image", "text")
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
             case "vit-base":
@@ -218,7 +221,7 @@ class ImageClassificationTools(GroupedTools):
                 )
 
                 def process(
-                    input_data: DataIncludeImage, device: str
+                        input_data: DataIncludeImage, device: str
                 ) -> DataIncludeText:
                     inputs = processor(
                         images=input_data["image"], return_tensors="pt"
@@ -249,7 +252,7 @@ class ObjectDetectionTools(GroupedTools):
         self.IOFormat = ("image", "object_detection_information")
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
             case "detr-resnet-101":
@@ -260,20 +263,20 @@ class ObjectDetectionTools(GroupedTools):
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
 
-                def process(input_data: Any, device: str) -> Any:
+                def process(input_data: DataIncludeImage, device: str) -> Any:
                     inputs = processor(
                         images=input_data["image"], return_tensors="pt"
                     ).to(device)
                     with torch.no_grad():
                         outputs = model(**inputs)
 
-                    # Only keep predictions with score > 0.9 (example threshold)
                     threshold = 0.9
-                    target_sizes = torch.tensor(
-                        [[img.size[1], img.size[0]] for img in input_data.images]
-                    ).to(device)
+                    target_sizes = torch.tensor([
+                        [inputs["pixel_values"].shape[2], inputs["pixel_values"].shape[3]]
+                        for _ in range(inputs["pixel_values"].shape[0])
+                    ]).to(device)
                     results = processor.post_process_object_detection(
-                        outputs, target_sizes, threshold=threshold
+                        outputs, target_sizes=target_sizes, threshold=threshold
                     )
 
                     final_outputs = []
@@ -305,7 +308,7 @@ class ImageSuperResolutionTools(GroupedTools):
         self.IOFormat = ("image", "image")
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
             case "swin2sr":
@@ -317,7 +320,7 @@ class ImageSuperResolutionTools(GroupedTools):
                 )
 
                 def process(
-                    input_data: DataIncludeImage, device: str
+                        input_data: DataIncludeImage, device: str
                 ) -> DataIncludeImage:
                     inputs = processor(
                         images=input_data["image"], return_tensors="pt"
@@ -355,7 +358,7 @@ class ImageColorizationTools(GroupedTools):
         self.IOFormat = ("image", "image")
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
             case "siggraph17":
@@ -368,7 +371,7 @@ class ImageColorizationTools(GroupedTools):
                 model = colorizers.siggraph17()
 
                 def process(
-                    input_data: DataIncludeImage, device: str
+                        input_data: DataIncludeImage, device: str
                 ) -> DataIncludeImage:
                     colorized_images = []
                     for img in input_data["image"]:
@@ -411,13 +414,86 @@ class ImageDenoisingTools(GroupedTools):
     def __init__(self):
         super().__init__()
         self.task_name: TaskName = "image_denoising"
+        self.IOFormat = ("image", "image")
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
-            # case "restormer-denoise":
-            #     pass
+            case "restormer-denoise":
+                restormer_arch_path = (
+                    "./github_models/Restormer/basicsr/models/archs/restormer_arch.py"
+                )
+                arch_dict = run_path(restormer_arch_path)
+                Restormer = arch_dict["Restormer"]
+
+                # initialize model parameters
+                parameters = {
+                    "inp_channels": 3,
+                    "out_channels": 3,
+                    "dim": 48,
+                    "num_blocks": [4, 6, 6, 8],
+                    "num_refinement_blocks": 4,
+                    "heads": [1, 2, 4, 8],
+                    "ffn_expansion_factor": 2.66,
+                    "bias": False,
+                    "LayerNorm_type": "BiasFree",  # note: denoising may use 'BiasFree'
+                    "dual_pixel_task": False,
+                }
+                model = Restormer(**parameters)
+                ckpt_path = "./github_models/Restormer/Denoising/pretrained_models/real_denoising.pth"
+                checkpoint = torch.load(ckpt_path, map_location="cpu")
+                model.load_state_dict(checkpoint["params"])
+
+                def process(
+                        input_data: DataIncludeImage, device: str
+                ) -> DataIncludeImage:
+                    """
+                    assume input_data["image"] is List[torch.Tensor], each tensor shape (C,H,W), range 0~255
+                    output same, List[torch.Tensor], each tensor shape (C,H,W), range 0~255
+                    """
+                    restored_images: List[torch.Tensor] = []
+                    img_multiple_of = 8
+
+                    with torch.no_grad():
+                        for img_t in input_data["image"]:
+                            # 1) convert to (1, C, H, W), normalize to [0,1]
+                            c, h, w = img_t.shape
+                            inp = img_t.float().div(255.0).unsqueeze(0).to(device)
+
+                            # 2) padding
+                            Hpad = (
+                                    (h + img_multiple_of)
+                                    // img_multiple_of
+                                    * img_multiple_of
+                            )
+                            Wpad = (
+                                    (w + img_multiple_of)
+                                    // img_multiple_of
+                                    * img_multiple_of
+                            )
+                            padh = Hpad - h
+                            padw = Wpad - w
+                            inp = F.pad(inp, (0, padw, 0, padh), mode="reflect")
+
+                            # 3) forward
+                            denoised = model(inp)
+                            denoised = torch.clamp(denoised, 0, 1)
+
+                            # 4) remove pad
+                            denoised = denoised[:, :, :h, :w]
+
+                            # 5) convert to [0,255] integer tensor
+                            denoised_np = denoised[0].permute(1, 2, 0).cpu().numpy()
+                            denoised_np = img_as_ubyte(denoised_np)  # (H,W,C) uint8
+                            # 6) convert back to (C,H,W)
+                            restored_t = torch.from_numpy(denoised_np).permute(2, 0, 1)
+                            restored_images.append(restored_t)
+
+                    return {"image": restored_images}
+
+                return model, process, {}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for image_denoising"
@@ -432,13 +508,86 @@ class ImageDeblurringTools(GroupedTools):
     def __init__(self):
         super().__init__()
         self.task_name: TaskName = "image_deblurring"
+        self.IOFormat = ("image", "image")
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
-            # case "restormer-deblur":
-            #     pass
+            case "restormer-deblur":
+
+                # 1) load Restormer architecture
+                restormer_arch_path = (
+                    "./github_models/Restormer/basicsr/models/archs/restormer_arch.py"
+                )
+                arch_dict = run_path(restormer_arch_path)
+                Restormer = arch_dict["Restormer"]
+
+                # 2) initialize model parameters
+                parameters = {
+                    "inp_channels": 3,
+                    "out_channels": 3,
+                    "dim": 48,
+                    "num_blocks": [4, 6, 6, 8],
+                    "num_refinement_blocks": 4,
+                    "heads": [1, 2, 4, 8],
+                    "ffn_expansion_factor": 2.66,
+                    "bias": False,
+                    "LayerNorm_type": "WithBias",  # defocus_deblurring may use WithBias
+                    "dual_pixel_task": False,
+                }
+                model = Restormer(**parameters)
+
+                # 3) load pretrained weights
+                ckpt_path = "./github_models/Restormer/Defocus_Deblurring/pretrained_models/single_image_defocus_deblurring.pth"
+                checkpoint = torch.load(ckpt_path, map_location="cpu")
+                model.load_state_dict(checkpoint["params"])
+
+                # 4) define processing function
+                def process(
+                        input_data: DataIncludeImage, device: str
+                ) -> DataIncludeImage:
+                    restored_images: List[torch.Tensor] = []
+                    img_multiple_of = 8
+
+                    with torch.no_grad():
+                        for img_t in input_data["image"]:
+                            # same procedure as denoise
+                            c, h, w = img_t.shape
+                            inp = img_t.float().div(255.0).unsqueeze(0).to(device)
+
+                            # pad
+                            Hpad = (
+                                    (h + img_multiple_of)
+                                    // img_multiple_of
+                                    * img_multiple_of
+                            )
+                            Wpad = (
+                                    (w + img_multiple_of)
+                                    // img_multiple_of
+                                    * img_multiple_of
+                            )
+                            padh = Hpad - h
+                            padw = Wpad - w
+                            inp = F.pad(inp, (0, padw, 0, padh), mode="reflect")
+
+                            # forward
+                            deblurred = model(inp)
+                            deblurred = torch.clamp(deblurred, 0, 1)
+
+                            # remove pad
+                            deblurred = deblurred[:, :, :h, :w]
+
+                            # convert back to (C,H,W) in 0-255
+                            deblurred_np = deblurred[0].permute(1, 2, 0).cpu().numpy()
+                            deblurred_np = img_as_ubyte(deblurred_np)
+                            restored_t = torch.from_numpy(deblurred_np).permute(2, 0, 1)
+                            restored_images.append(restored_t)
+
+                    return {"image": restored_images}
+
+                return model, process, {}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for image_deblurring"
@@ -456,7 +605,7 @@ class ImageCaptioningTools(GroupedTools):
         self.IOFormat = ("image", "text")
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
             case "vit-gpt2":
@@ -471,7 +620,7 @@ class ImageCaptioningTools(GroupedTools):
                 )
 
                 def process(
-                    input_data: DataIncludeImage, device: str
+                        input_data: DataIncludeImage, device: str
                 ) -> DataIncludeText:
                     pixel_values = processor(
                         images=input_data["image"], return_tensors="pt"
@@ -499,26 +648,59 @@ class TextToImageTools(GroupedTools):
     def __init__(self):
         super().__init__()
         self.task_name: TaskName = "text_to_image"
+        self.IOFormat = ("text", "image")  # input text -> output image
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
+        # todo: implement text-to-image generation
+        # from diffusers import StableDiffusionPipeline
+
+        # # need a dummy function to avoid SafetyChecker error (similar to old code)
+        # def dummy_safety_checker(images, clip_input):
+        #     return images, False
+
         match model_name:
-            # case "stable-diffusion-v1-4":
-            #     model = None
+            #     case "stable-diffusion-v1-4":
+            #         pipe = StableDiffusionPipeline.from_pretrained(
+            #             model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
+            #         )
+            #         # remove safety checker
+            #         pipe.safety_checker = dummy_safety_checker
+            #         pipe.enable_attention_slicing()
 
-            #     def dummy_process(input_data: DataIncludeText, device: str) -> DataIncludeImage:
-            #         return {"image": []}
+            #         def process(
+            #             input_data: DataIncludeText, device: str
+            #         ) -> DataIncludeImage:
+            #             """
+            #             input_data: {"text": List[str]}  # multiple prompts
+            #             returns: {"image": List[torch.Tensor]} or PIL
+            #             """
+            #             pipe.to(device)
+            #             images = []
+            #             for prompt in input_data["text"]:
+            #                 with torch.no_grad():
+            #                     out = pipe(prompt).images[0]  # generate one image
+            #                 # out is PIL Image; if you want tensor, you can convert it yourself
+            #                 # here directly convert to tensor (C,H,W) 0~255
+            #                 img_t = transforms.ToTensor()(out) * 255.0
+            #                 img_t = img_t.byte()
+            #                 images.append(img_t)
 
-            #     return model, None, dummy_process
+            #             return {"image": images}
+
+            #         return pipe, process, {}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for text_to_image"
                 )
 
+
 class QuestionAnsweringTools(GroupedTools):
     """
     Tools for text-based question answering, e.g. DistilBERT trained on SQuAD.
+    IOFormat is recommended to be (("text","text"), "text") to represent (contexts, questions) -> answers
     """
 
     def __init__(self):
@@ -527,42 +709,61 @@ class QuestionAnsweringTools(GroupedTools):
         self.IOFormat = (("text", "text"), "text")
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
             # case "distilbert-squad":
-            # tokenizer = AutoTokenizer.from_pretrained(
-            #     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
-            # )
-            # model = AutoModelForQuestionAnswering.from_pretrained(
-            #     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
-            # )
+            #     tokenizer = AutoTokenizer.from_pretrained(
+            #         model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
+            #     )
+            #     model = AutoModelForQuestionAnswering.from_pretrained(
+            #         model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
+            #     )
 
-            # def process(input_data: DataIncludeText, device: str) -> DataIncludeText:
-            #     questions = input_data.questions
-            #     contexts = input_data.contexts
-            #     inputs = tokenizer(
-            #         questions, contexts, return_tensors="pt", padding=True
-            #     ).to(device)
+            #     def process(
+            #         input_data: Dict[str, List[str]], device: str
+            #     ) -> Dict[str, List[str]]:
+            #         """
+            #         expect input_data = {"context": [...], "question": [...]}
+            #         or you can follow the old code, put context/question in text[0], text[1]?
+            #         here for readability, assume:
+            #             input_data["context"]  = List[str]
+            #             input_data["question"] = List[str]
+            #         """
+            #         contexts = input_data["context"]
+            #         questions = input_data["question"]
 
-            #     with torch.no_grad():
-            #         outputs = model(**inputs)
+            #         # if the number of contexts and questions do not match, you need to handle it yourself or raise an error
+            #         if len(contexts) != len(questions):
+            #             raise ValueError("Number of contexts and questions must match.")
 
-            #     start_logits = outputs.start_logits
-            #     end_logits = outputs.end_logits
+            #         inputs = tokenizer(
+            #             questions,
+            #             contexts,
+            #             return_tensors="pt",
+            #             padding=True,
+            #             truncation=True,
+            #         ).to(device)
 
-            #     answers = []
-            #     for i in range(len(questions)):
-            #         start_idx = int(torch.argmax(start_logits[i]))
-            #         end_idx = int(torch.argmax(end_logits[i]))
-            #         all_input_ids = inputs["input_ids"][i][start_idx : end_idx + 1]
-            #         answer_text = tokenizer.decode(
-            #             all_input_ids, skip_special_tokens=True
-            #         )
-            #         answers.append(answer_text)
-            #     return answers
+            #         with torch.no_grad():
+            #             outputs = model(**inputs)
 
-            # return model, tokenizer, process
+            #         start_logits = outputs.start_logits
+            #         end_logits = outputs.end_logits
+
+            #         answers = []
+            #         for i in range(len(questions)):
+            #             start_idx = torch.argmax(start_logits[i]).item()
+            #             end_idx = torch.argmax(end_logits[i]).item()
+            #             # decode the token from start:end+1
+            #             token_ids = inputs["input_ids"][i][start_idx : end_idx + 1]
+            #             ans_str = tokenizer.decode(token_ids, skip_special_tokens=True)
+            #             answers.append(ans_str)
+
+            #         return {"text": answers}
+
+            #     return model, process, {"tokenizer": tokenizer}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for question_answering"
@@ -579,7 +780,7 @@ class VisualQuestionAnsweringTools(GroupedTools):
         self.task_name: TaskName = "visual_question_answering"
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         """
         Create a VQA model (e.g. ViLT), plus its processor, and define how to process inputs.
@@ -593,18 +794,18 @@ class VisualQuestionAnsweringTools(GroupedTools):
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
 
-                def process(input_data: Any, device: str) -> Any:
+                def process(input_data: DataIncludeImageAndText, device: str) -> DataIncludeText:
                     """
                     input_data:
                       {
-                        'images': List[PIL.Image],
-                        'questions': List[str]
+                        'images': List[torch.Tensor],
+                        'text': List[str] # questions
                       }
                       They must have the same length or be broadcastable.
                     returns: List[str] predicted answers.
                     """
-                    images = input_data.images
-                    questions = input_data.questions
+                    images = input_data["image"]
+                    questions = input_data["text"]
                     enc = processor(
                         images, questions, return_tensors="pt", padding=True
                     ).to(device)
@@ -613,13 +814,13 @@ class VisualQuestionAnsweringTools(GroupedTools):
 
                     idxs = torch.argmax(outputs.logits, dim=1)
                     answers = [model.config.id2label[idx.item()] for idx in idxs]
-                    return answers
+                    return {"text": answers}
 
                 return model, process, {"processor": processor}
-
-        raise ValueError(
-            f"Unsupported model_name '{model_name}' for visual_question_answering"
-        )
+            case _:
+                raise NotImplementedError(
+                    f"Model '{model_name}' is not implemented for visual_question_answering"
+                )
 
 
 class TextSummarizationTools(GroupedTools):
@@ -632,7 +833,7 @@ class TextSummarizationTools(GroupedTools):
         self.task_name: TaskName = "text_summarization"
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         """
         Create a seq2seq summarization model and process function.
@@ -646,13 +847,13 @@ class TextSummarizationTools(GroupedTools):
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
 
-                def process(input_data: Any, device: str) -> Any:
+                def process(input_data: DataIncludeText, device: str) -> DataIncludeText:
                     """
                     input_data: {'text': List[str]}, each item is a passage to summarize.
                     returns: List[str] summarized text for each passage.
                     """
                     inputs = tokenizer(
-                        input_data.text,
+                        input_data['text'],
                         return_tensors="pt",
                         padding=True,
                         truncation=True,
@@ -665,7 +866,7 @@ class TextSummarizationTools(GroupedTools):
                     summaries = [
                         tokenizer.decode(g, skip_special_tokens=True) for g in outputs
                     ]
-                    return summaries
+                    return {"text": summaries}
 
                 return model, process, {"tokenizer": tokenizer}
 
@@ -684,7 +885,7 @@ class TextGenerationTools(GroupedTools):
         self.task_name: TaskName = "text_generation"
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         """
         Create a causal language model (e.g. GPT2) and process function.
@@ -702,13 +903,13 @@ class TextGenerationTools(GroupedTools):
                 )
                 model.resize_token_embeddings(len(tokenizer))
 
-                def process(input_data: Any, device: str) -> Any:
+                def process(input_data: DataIncludeText, device: str) -> DataIncludeText:
                     """
                     input_data: {'text': List[str]}
                     returns: List[str] of generated text completions.
                     """
                     results = []
-                    for text_item in input_data.text:
+                    for text_item in input_data["text"]:
                         inputs = tokenizer(text_item, return_tensors="pt").to(device)
 
                         with torch.no_grad():
@@ -722,7 +923,7 @@ class TextGenerationTools(GroupedTools):
                             outputs[0], skip_special_tokens=True
                         )
                         results.append(gen_text)
-                    return results
+                    return {"text": results}
 
                 return model, process, {"tokenizer": tokenizer}
 
@@ -739,7 +940,7 @@ class MaskFillingTools(GroupedTools):
         self.task_name: TaskName = "mask_filling"
 
     def _create_model(
-        self, model_name: ModelName, model_config: ModelConfig
+            self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         """
         Create a masked language model (e.g. DistilBERT MLM) and process function.
@@ -753,13 +954,13 @@ class MaskFillingTools(GroupedTools):
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
 
-                def process(input_data: Any, device: str) -> Any:
+                def process(input_data: DataIncludeText, device: str) -> DataIncludeText:
                     """
                     input_data: {'text': List[str]} containing [MASK] tokens.
                     returns: List[str] with [MASK] replaced by the top-1 predicted token.
                     """
                     inputs = tokenizer(
-                        input_data.text, return_tensors="pt", padding=True
+                        input_data['text'], return_tensors="pt", padding=True
                     ).to(device)
 
                     with torch.no_grad():
@@ -769,10 +970,10 @@ class MaskFillingTools(GroupedTools):
                     results = []
                     mask_token_id = tokenizer.mask_token_id
 
-                    for i, original_text in enumerate(input_data.text):
+                    for i, original_text in enumerate(input_data['text']):
                         # Find the first [MASK] index in the input IDs
                         mask_positions = (
-                            inputs.input_ids[i] == mask_token_id
+                                inputs.input_ids[i] == mask_token_id
                         ).nonzero()
                         if len(mask_positions) == 0:
                             # If no [MASK], just append original text
@@ -793,7 +994,7 @@ class MaskFillingTools(GroupedTools):
                         )
                         results.append(filled_text)
 
-                    return results
+                    return {"text": results}
 
                 return model, process, {"tokenizer": tokenizer}
 

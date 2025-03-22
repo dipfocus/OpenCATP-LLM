@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Literal, TypedDict, NotRequired, Any
+from typing import List, Literal, TypedDict, NotRequired
 
 from torch import Tensor
 

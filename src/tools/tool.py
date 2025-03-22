@@ -6,7 +6,7 @@ import psutil
 import torch
 
 from src.config import ModelConfig
-from src.utils.cost import CPUMemoryMonitor
+from src.metrics.runtime_cost import CPUMemoryMonitor
 
 
 class Tool:
@@ -119,7 +119,7 @@ class Tool:
 
         # Get time and memory usage differences
         time_after = time.perf_counter() * 1000
-        cpu_mem_after = cpu_mem_monitor.get_max_cpu_memory_allocated(size='MB')
+        cpu_mem_after = cpu_mem_monitor.get_max_cpu_memory_allocated(unit='MB')
         gpu_mem_after = 0
         if self.device != 'cpu':
             gpu_mem_after = torch.cuda.max_memory_allocated(self.device) / (1024 ** 2)

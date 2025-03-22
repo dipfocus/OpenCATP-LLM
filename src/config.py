@@ -13,7 +13,7 @@ src_dir = os.path.dirname(current_file_path)
 home_dir = os.path.dirname(src_dir)
 
 # Constants that should typically be reset based on the device environment
-DATA_DIR = "/home/data/openCATP_LLM/"
+DATA_PATH = "/home/data/openCATP_LLM/dataset"
 PRETRAINED_LLM_DIR = "/home/data/pretrained_llms/"
 
 TOOL_DEVICE_LIST = ["cuda:0", "cuda:1"]
@@ -33,145 +33,28 @@ LOG_FORMAT_CONSOLE = (
 API_BASE = "https://api.chatanywhere.tech/v1"
 API_KEY = "sk-CelumY6pSozc9ZVHQSbjdVNk10LxRONiIBo5JxgRUxHShq5z"
 
-DEFAULT_START_TASK_NAME = "Input"
-
+DEFAULT_START_TASK_NAME = "input"
 
 @dataclass
 class GlobalPathConfig:
     hf_cache = os.path.join(home_dir, "hf_cache/")
     data_path = os.path.join(home_dir, "dataset/")
     result_path = os.path.join(home_dir, "results/")
-    # finetune_path = os.path.join(home_dir, "models/finetune")
 
 
 @dataclass
 class GlobalTaskConfig:
     default_train_tasks = [
-        1,
-        4,
-        5,
-        6,
-        7,
-        9,
-        12,
-        13,
-        14,
-        19,
-        20,
-        23,
-        24,
-        25,
-        26,
-        30,
-        31,
-        32,
-        33,
-        34,
-        35,
-        36,
-        37,
-        38,
-        40,
-        41,
-        43,
-        44,
-        46,
-        47,
-        48,
-        50,
-        51,
-        52,
-        53,
-        54,
-        56,
-        57,
-        59,
-        60,
-        63,
-        64,
-        65,
-        67,
-        68,
-        71,
-        72,
-        73,
-        74,
-        77,
-        79,
-        80,
-        81,
-        82,
-        83,
-        85,
-        86,
-        87,
-        88,
-        90,
-        91,
-        92,
-        94,
-        95,
-        97,
-        98,
-        99,
-        101,
-        103,
-        114,
-        112,
-        107,
+        1, 4, 5, 6, 7, 9, 12, 13, 14, 19, 20, 23, 24, 25, 26, 30, 31, 32, 33, 34, 35, 36, 37, 38, 40, 41, 43, 44, 46,
+        47, 48, 50, 51, 52, 53, 54, 56, 57, 59, 60, 63, 64, 65, 67, 68, 71, 72, 73, 74, 77, 79, 80, 81, 82, 83, 85, 86,
+        87, 88, 90, 91, 92, 94, 95, 97, 98, 99, 101, 103, 114, 112, 107,
     ]
     default_eval_tasks = [
-        2,
-        3,
-        11,
-        15,
-        17,
-        21,
-        22,
-        28,
-        42,
-        58,
-        61,
-        66,
-        69,
-        70,
-        78,
-        100,
-        102,
-        104,
-        109,
+        2, 3, 11, 15, 17, 21, 22, 28, 42, 58, 61, 66, 69, 70, 78, 100, 102, 104, 109,
     ]
     default_test_tasks = [
-        0,
-        8,
-        10,
-        16,
-        18,
-        27,
-        29,
-        39,
-        45,
-        49,
-        55,
-        62,
-        75,
-        76,
-        84,
-        89,
-        93,
-        96,
-        108,
-        110,
-        111,
+        0, 8, 10, 16, 18, 27, 29, 39, 45, 49, 55, 62, 75, 76, 84, 89, 93, 96, 108, 110, 111,
     ]
-
-    # 评估集和测试集的样本选取（从已有文件加载）
-    # default_eval_task_samples = pickle.load(
-    #     open(os.path.join(result_path, 'selected_sample_eval.pkl'), 'rb')
-    # )
-    # default_test_task_samples = pickle.load(
-    #     open(os.path.join(result_path, 'selected_sample_test.pkl'), 'rb')
-    # )
 
 
 @dataclass

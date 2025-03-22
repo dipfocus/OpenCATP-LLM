@@ -21,7 +21,7 @@ class TaskDataset(Dataset):
     output_data: Dict[SampleID, Dict[str, torch.Tensor | TextContent]]
     sample_ids: List[SampleID]
 
-    def __init__(self, data_path: str, task_id: int):
+    def __init__(self, data_path: str, *, task_id: int):
         """
         Initialize dataset with the path to the data and a task ID.
 
