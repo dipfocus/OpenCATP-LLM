@@ -14,6 +14,7 @@ DATA_DIR = '/home/data/wuduo/llm_tool_planning/'
 PRETRAINED_LLM_DIR = '/home/data/pretrained_llms/'
 
 TOOL_DEVICE_LIST = ['cuda:1', 'cuda:2']
+EVALUATOR_DEVICE_LIST = ['cuda:3']
 # the minimum GPU memory allocation limit
 TOOL_GPU_MEMORY_ALLOC_LIMIT = 3 * 1024 ** 3
 

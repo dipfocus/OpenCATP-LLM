@@ -1,8 +1,10 @@
+evaluate==0.4.3
 opencv-python==4.11.0.86
 pillow==11.1.0
 psutil==7.0.0
 scikit-image==0.25.2
 torch==2.6.0
 torchvision==0.21.0
+tqdm==4.67.1
 transformers==4.49.0
 loguru==0.7.3
