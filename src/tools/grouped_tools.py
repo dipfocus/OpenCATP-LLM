@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from importlib import import_module
 from typing import Any, Dict, List, Tuple, Callable
 from runpy import run_path
 import os
@@ -97,8 +96,8 @@ class GroupedTools(ABC):
             self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
         """
-        Subclasses should return a tuple of (model, tokenizer, process).
-        The process is a callable that handles how input_data is fed to the model
+        Subclasses should return a tuple of (model, process, extra_args).
+        The `process` is a callable that handles how input_data is fed to the model
         and how output is returned.
         """
         ...
@@ -139,9 +138,14 @@ class SentimentAnalysisTools(GroupedTools):
                     # Grab the argmax of logits
                     pred_ids = torch.argmax(model_output.logits, dim=1)
                     pred_labels = [model.config.id2label[p.item()] for p in pred_ids]
-                    return {"text": pred_labels}
+                    new_data = {"text": pred_labels}
+
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {"tokenizer": tokenizer}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for sentiment_analysis"
@@ -190,9 +194,14 @@ class MachineTranslationTools(GroupedTools):
                         tokenizer.decode(output, skip_special_tokens=True)
                         for output in model_output
                     ]
-                    return {"text": translated_text}
+                    new_data = {"text": translated_text}
+
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {"tokenizer": tokenizer}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for machine_translation"
@@ -223,7 +232,7 @@ class ImageClassificationTools(GroupedTools):
 
                 def process(
                         input_data: DataIncludeImage, device: str
-                ) -> DataIncludeText:
+                ) -> Dict[str, Any]:
                     inputs = processor(
                         images=input_data["image"], return_tensors="pt"
                     ).to(device)
@@ -233,9 +242,14 @@ class ImageClassificationTools(GroupedTools):
                     predicted_labels = [
                         model.config.id2label[idx.item()] for idx in predicted_ids
                     ]
-                    return {"text": predicted_labels}
+                    new_data = {"text": predicted_labels}
+
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {"processor": processor}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for image_classification"
@@ -261,10 +275,12 @@ class ObjectDetectionTools(GroupedTools):
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
                 )
                 model = DetrForObjectDetection.from_pretrained(
-                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache, ignore_mismatched_sizes=True
+                    model_config.hf_url,
+                    cache_dir=GlobalPathConfig.hf_cache,
+                    ignore_mismatched_sizes=True,
                 )
 
-                def process(input_data: DataIncludeImage, device: str) -> Any:
+                def process(input_data: DataIncludeImage, device: str) -> Dict[str, Any]:
                     inputs = processor(
                         images=input_data["image"], return_tensors="pt"
                     ).to(device)
@@ -289,9 +305,14 @@ class ObjectDetectionTools(GroupedTools):
                         final_outputs.append(
                             {"boxes": boxes, "scores": scores, "labels": label_names}
                         )
-                    return {"object_detection_information": final_outputs}
+
+                    new_data = {"object_detection_information": final_outputs}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {"processor": processor}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for object_detection"
@@ -334,14 +355,16 @@ class ImageSuperResolutionTools(GroupedTools):
                     reconstructions = outputs.reconstruction.clamp_(0, 1)
                     for i in range(reconstructions.shape[0]):
                         out_img = reconstructions[i].permute(1, 2, 0)
-                        out_img = (
-                            (out_img.cpu().numpy() * 255.0).round().astype(np.uint8)
-                        )
-                        sr_images.append(out_img)  # or convert to PIL if desired
+                        out_img = (out_img.cpu().numpy() * 255.0).round().astype(np.uint8)
+                        sr_images.append(out_img)
 
-                    return {"image": sr_images}
+                    new_data = {"image": sr_images}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {"processor": processor}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for image_super_resolution"
@@ -363,7 +386,6 @@ class ImageColorizationTools(GroupedTools):
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
             case "siggraph17":
-                # Import third-party colorizers from a custom path
                 from .github_models.colorization import colorizers
                 import cv2
 
@@ -398,9 +420,13 @@ class ImageColorizationTools(GroupedTools):
                         color_tensor = torch.from_numpy(out_img).permute(2, 0, 1)
                         colorized_images.append(color_tensor)
 
-                    return {"image": colorized_images}
+                    new_data = {"image": colorized_images}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for image_colorization"
@@ -437,7 +463,7 @@ class ImageDenoisingTools(GroupedTools):
                     "heads": [1, 2, 4, 8],
                     "ffn_expansion_factor": 2.66,
                     "bias": False,
-                    "LayerNorm_type": "BiasFree",  # note: denoising may use 'BiasFree'
+                    "LayerNorm_type": "BiasFree",  # note: denoising often uses 'BiasFree'
                     "dual_pixel_task": False,
                 }
                 model = Restormer(**parameters)
@@ -449,8 +475,8 @@ class ImageDenoisingTools(GroupedTools):
                         input_data: DataIncludeImage, device: str
                 ) -> DataIncludeImage:
                     """
-                    assume input_data["image"] is List[torch.Tensor], each tensor shape (C,H,W), range 0~255
-                    output same, List[torch.Tensor], each tensor shape (C,H,W), range 0~255
+                    Assume input_data["image"] is List[torch.Tensor], each tensor shape (C,H,W), range 0~255.
+                    Output: same structure, List[torch.Tensor], shape (C,H,W), range 0~255.
                     """
                     restored_images: List[torch.Tensor] = []
                     img_multiple_of = 8
@@ -462,16 +488,8 @@ class ImageDenoisingTools(GroupedTools):
                             inp = img_t.float().div(255.0).unsqueeze(0).to(device)
 
                             # 2) padding
-                            Hpad = (
-                                    (h + img_multiple_of)
-                                    // img_multiple_of
-                                    * img_multiple_of
-                            )
-                            Wpad = (
-                                    (w + img_multiple_of)
-                                    // img_multiple_of
-                                    * img_multiple_of
-                            )
+                            Hpad = (h + img_multiple_of) // img_multiple_of * img_multiple_of
+                            Wpad = (w + img_multiple_of) // img_multiple_of * img_multiple_of
                             padh = Hpad - h
                             padw = Wpad - w
                             inp = F.pad(inp, (0, padw, 0, padh), mode="reflect")
@@ -490,7 +508,10 @@ class ImageDenoisingTools(GroupedTools):
                             restored_t = torch.from_numpy(denoised_np).permute(2, 0, 1)
                             restored_images.append(restored_t)
 
-                    return {"image": restored_images}
+                    new_data = {"image": restored_images}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {}
 
@@ -532,7 +553,7 @@ class ImageDeblurringTools(GroupedTools):
                     "heads": [1, 2, 4, 8],
                     "ffn_expansion_factor": 2.66,
                     "bias": False,
-                    "LayerNorm_type": "WithBias",  # defocus_deblurring may use WithBias
+                    "LayerNorm_type": "WithBias",  # defocus_deblurring may use 'WithBias'
                     "dual_pixel_task": False,
                 }
                 model = Restormer(**parameters)
@@ -542,7 +563,6 @@ class ImageDeblurringTools(GroupedTools):
                 checkpoint = torch.load(ckpt_path, map_location="cpu")
                 model.load_state_dict(checkpoint["params"])
 
-                # 4) define processing function
                 def process(
                         input_data: DataIncludeImage, device: str
                 ) -> DataIncludeImage:
@@ -556,16 +576,8 @@ class ImageDeblurringTools(GroupedTools):
                             inp = img_t.float().div(255.0).unsqueeze(0).to(device)
 
                             # pad
-                            Hpad = (
-                                    (h + img_multiple_of)
-                                    // img_multiple_of
-                                    * img_multiple_of
-                            )
-                            Wpad = (
-                                    (w + img_multiple_of)
-                                    // img_multiple_of
-                                    * img_multiple_of
-                            )
+                            Hpad = (h + img_multiple_of) // img_multiple_of * img_multiple_of
+                            Wpad = (w + img_multiple_of) // img_multiple_of * img_multiple_of
                             padh = Hpad - h
                             padw = Wpad - w
                             inp = F.pad(inp, (0, padw, 0, padh), mode="reflect")
@@ -583,7 +595,10 @@ class ImageDeblurringTools(GroupedTools):
                             restored_t = torch.from_numpy(deblurred_np).permute(2, 0, 1)
                             restored_images.append(restored_t)
 
-                    return {"image": restored_images}
+                    new_data = {"image": restored_images}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {}
 
@@ -630,9 +645,15 @@ class ImageCaptioningTools(GroupedTools):
                             pixel_values, max_length=40, num_beams=4
                         )
                     preds = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
-                    return {"text": [p.strip() for p in preds]}
+                    captions = [p.strip() for p in preds]
+
+                    new_data = {"text": captions}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {"tokenizer": tokenizer}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for image_captioning"
@@ -647,7 +668,7 @@ class TextToImageTools(GroupedTools):
     def __init__(self):
         super().__init__()
         self.task_name: TaskName = "text_to_image"
-        self.IOFormat = ("text", "image")  # input text -> output image
+        self.IOFormat = ("text", "image")
 
     def _create_model(
             self, model_name: ModelName, model_config: ModelConfig
@@ -758,9 +779,12 @@ class QuestionAnsweringTools(GroupedTools):
             #             token_ids = inputs["input_ids"][i][start_idx : end_idx + 1]
             #             ans_str = tokenizer.decode(token_ids, skip_special_tokens=True)
             #             answers.append(ans_str)
-
-            #         return {"text": answers}
-
+            #
+            #         new_data = {"text": answers}
+            #         updated_data = input_data.copy()
+            #         updated_data.update(new_data)
+            #         return updated_data
+            #
             #     return model, process, {"tokenizer": tokenizer}
 
             case _:
@@ -781,9 +805,6 @@ class VisualQuestionAnsweringTools(GroupedTools):
     def _create_model(
             self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
-        """
-        Create a VQA model (e.g. ViLT), plus its processor, and define how to process inputs.
-        """
         match model_name:
             case "vilt-vqa":
                 processor = ViltProcessor.from_pretrained(
@@ -813,9 +834,14 @@ class VisualQuestionAnsweringTools(GroupedTools):
 
                     idxs = torch.argmax(outputs.logits, dim=1)
                     answers = [model.config.id2label[idx.item()] for idx in idxs]
-                    return {"text": answers}
+
+                    new_data = {"text": answers}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {"processor": processor}
+
             case _:
                 raise NotImplementedError(
                     f"Model '{model_name}' is not implemented for visual_question_answering"
@@ -834,9 +860,6 @@ class TextSummarizationTools(GroupedTools):
     def _create_model(
             self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
-        """
-        Create a seq2seq summarization model and process function.
-        """
         match model_name:
             case "bart-cnn":
                 tokenizer = AutoTokenizer.from_pretrained(
@@ -849,29 +872,32 @@ class TextSummarizationTools(GroupedTools):
                 def process(input_data: DataIncludeText, device: str) -> DataIncludeText:
                     """
                     input_data: {'text': List[str]}, each item is a passage to summarize.
-                    returns: List[str] summarized text for each passage.
                     """
                     inputs = tokenizer(
-                        input_data['text'],
+                        input_data["text"],
                         return_tensors="pt",
                         padding=True,
                         truncation=True,
                     ).to(device)
 
                     with torch.no_grad():
-                        outputs = model.generate(
-                            **inputs, max_length=142, min_length=56
-                        )
+                        outputs = model.generate(**inputs, max_length=142, min_length=56)
+
                     summaries = [
                         tokenizer.decode(g, skip_special_tokens=True) for g in outputs
                     ]
-                    return {"text": summaries}
+                    new_data = {"text": summaries}
+
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {"tokenizer": tokenizer}
 
-        raise ValueError(
-            f"Unsupported model_name '{model_name}' for text_summarization"
-        )
+            case _:
+                raise NotImplementedError(
+                    f"Model '{model_name}' is not implemented for text_summarization"
+                )
 
 
 class TextGenerationTools(GroupedTools):
@@ -886,9 +912,6 @@ class TextGenerationTools(GroupedTools):
     def _create_model(
             self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
-        """
-        Create a causal language model (e.g. GPT2) and process function.
-        """
         match model_name:
             case "gpt2-base":
                 tokenizer = AutoTokenizer.from_pretrained(
@@ -905,7 +928,7 @@ class TextGenerationTools(GroupedTools):
                 def process(input_data: DataIncludeText, device: str) -> DataIncludeText:
                     """
                     input_data: {'text': List[str]}
-                    returns: List[str] of generated text completions.
+                    returns: {'text': List[str]}
                     """
                     results = []
                     for text_item in input_data["text"]:
@@ -918,15 +941,20 @@ class TextGenerationTools(GroupedTools):
                                 max_length=30,
                                 pad_token_id=tokenizer.pad_token_id,
                             )
-                        gen_text = tokenizer.decode(
-                            outputs[0], skip_special_tokens=True
-                        )
+                        gen_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
                         results.append(gen_text)
-                    return {"text": results}
+
+                    new_data = {"text": results}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {"tokenizer": tokenizer}
 
-        raise ValueError(f"Unsupported model_name '{model_name}' for text_generation")
+            case _:
+                raise NotImplementedError(
+                    f"Model '{model_name}' is not implemented for text_generation"
+                )
 
 
 class MaskFillingTools(GroupedTools):
@@ -941,9 +969,6 @@ class MaskFillingTools(GroupedTools):
     def _create_model(
             self, model_name: ModelName, model_config: ModelConfig
     ) -> Tuple[Any, Callable, Dict]:
-        """
-        Create a masked language model (e.g. DistilBERT MLM) and process function.
-        """
         match model_name:
             case "distilbert-mlm":
                 tokenizer = AutoTokenizer.from_pretrained(
@@ -956,10 +981,10 @@ class MaskFillingTools(GroupedTools):
                 def process(input_data: DataIncludeText, device: str) -> DataIncludeText:
                     """
                     input_data: {'text': List[str]} containing [MASK] tokens.
-                    returns: List[str] with [MASK] replaced by the top-1 predicted token.
+                    returns: {'text': List[str]} with [MASK] replaced by the top-1 predicted token.
                     """
                     inputs = tokenizer(
-                        input_data['text'], return_tensors="pt", padding=True
+                        input_data["text"], return_tensors="pt", padding=True
                     ).to(device)
 
                     with torch.no_grad():
@@ -969,23 +994,18 @@ class MaskFillingTools(GroupedTools):
                     results = []
                     mask_token_id = tokenizer.mask_token_id
 
-                    for i, original_text in enumerate(input_data['text']):
-                        # Find the first [MASK] index in the input IDs
-                        mask_positions = (
-                                inputs.input_ids[i] == mask_token_id
-                        ).nonzero()
+                    for i, original_text in enumerate(input_data["text"]):
+                        mask_positions = (inputs.input_ids[i] == mask_token_id).nonzero()
                         if len(mask_positions) == 0:
                             # If no [MASK], just append original text
                             results.append(original_text)
                             continue
 
-                        # For simplicity, assume only one mask per sequence
+                        # For simplicity, assume only one [MASK] per sequence
                         masked_index = mask_positions[0].item()
                         token_probs = probabilities[i, masked_index]
                         top_token_id = torch.topk(token_probs, k=1).indices[0].item()
-                        predicted_token = tokenizer.convert_ids_to_tokens(
-                            [top_token_id]
-                        )[0]
+                        predicted_token = tokenizer.convert_ids_to_tokens([top_token_id])[0]
 
                         # Replace the first occurrence of [MASK] in the text
                         filled_text = original_text.replace(
@@ -993,8 +1013,14 @@ class MaskFillingTools(GroupedTools):
                         )
                         results.append(filled_text)
 
-                    return {"text": results}
+                    new_data = {"text": results}
+                    updated_data = input_data.copy()
+                    updated_data.update(new_data)
+                    return updated_data
 
                 return model, process, {"tokenizer": tokenizer}
 
-        raise ValueError(f"Unsupported model_name '{model_name}' for mask_filling")
+            case _:
+                raise NotImplementedError(
+                    f"Model '{model_name}' is not implemented for mask_filling"
+                )
