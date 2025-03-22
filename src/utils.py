@@ -50,7 +50,7 @@ def normalize_task_name(source: str) -> TaskName:
     return target
 
 
-def print_graph(graph: PlanGraph):
+def print_graph(graph: PlanGraph, *, save_path=None):
     nodes = graph.nodes
     edges = graph.edges
 
@@ -60,4 +60,7 @@ def print_graph(graph: PlanGraph):
         G.add_edge(edge.source().node_id, edge.target().node_id)
 
     nx.draw(G, with_labels=True, node_color='skyblue', node_size=500, font_size=10, font_weight='bold')
+    
+    if save_path is not None:
+        plt.savefig(save_path)
     plt.show()

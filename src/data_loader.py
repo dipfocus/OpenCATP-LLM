@@ -82,24 +82,18 @@ class TaskDataset(Dataset):
             item_full_path = os.path.join(dir_path, item)
 
             if item == 'images':
-                # Handle all images in the 'images' subdirectory
                 file_data = self._load_images(item_full_path)
             elif item.endswith('.txt'):
-                # Handle .txt files
                 file_data = self._load_text(item_full_path)
             else:
                 raise ValueError(f"Unknown file type or directory: {item_full_path}")
 
-            # Merge data so each sample_id can have multiple entries (image + text)
             for sample_id, data_dict in file_data.items():
                 result[sample_id].update(data_dict)
 
         return dict(result)
 
     def _load_data(self) -> None:
-        """
-        Internal method to load all input and output data for this task.
-        """
         input_path = os.path.join(self.task_data_path, 'inputs')
         output_path = os.path.join(self.task_data_path, 'outputs')
 
@@ -107,14 +101,6 @@ class TaskDataset(Dataset):
         self.output_data = self._load_files(output_path)
 
     def __getitem__(self, index: int) -> Dict[str, int | Dict[str, torch.Tensor | TextContent]]:
-        """
-        Retrieve a single sample by integer index.
-        Returns a dictionary containing sample_id, input and output data.
-
-        :param index: An integer index, ranging from 0 to len(self)-1
-        :return: A dictionary with keys: 'sample_id', 'input', 'output'.
-        """
-        # Map numeric index to actual sample_id
         sample_id = self.sample_ids[index]
         data_item = {
             'sample_id': sample_id,
@@ -124,7 +110,4 @@ class TaskDataset(Dataset):
         return data_item
 
     def __len__(self) -> int:
-        """
-        Return the total number of samples in this dataset.
-        """
         return len(self.sample_ids)

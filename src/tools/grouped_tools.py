@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from importlib import import_module
 from typing import Any, Dict, List, Tuple, Callable
 from runpy import run_path
+import os
 
 from skimage.util import img_as_ubyte
 import torch.nn.functional as F
@@ -313,7 +314,7 @@ class ImageSuperResolutionTools(GroupedTools):
         match model_name:
             case "swin2sr":
                 processor = AutoImageProcessor.from_pretrained(
-                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
+                    model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache, use_fast=False
                 )
                 model = Swin2SRForImageSuperResolution.from_pretrained(
                     model_config.hf_url, cache_dir=GlobalPathConfig.hf_cache
@@ -421,9 +422,8 @@ class ImageDenoisingTools(GroupedTools):
     ) -> Tuple[Any, Callable, Dict]:
         match model_name:
             case "restormer-denoise":
-                restormer_arch_path = (
-                    "./github_models/Restormer/basicsr/models/archs/restormer_arch.py"
-                )
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                restormer_arch_path = f"{current_dir}/github_models/Restormer/basicsr/models/archs/restormer_arch.py"
                 arch_dict = run_path(restormer_arch_path)
                 Restormer = arch_dict["Restormer"]
 
@@ -441,7 +441,7 @@ class ImageDenoisingTools(GroupedTools):
                     "dual_pixel_task": False,
                 }
                 model = Restormer(**parameters)
-                ckpt_path = "./github_models/Restormer/Denoising/pretrained_models/real_denoising.pth"
+                ckpt_path = f"{current_dir}/github_models/Restormer/Denoising/pretrained_models/real_denoising.pth"
                 checkpoint = torch.load(ckpt_path, map_location="cpu")
                 model.load_state_dict(checkpoint["params"])
 
@@ -517,9 +517,8 @@ class ImageDeblurringTools(GroupedTools):
             case "restormer-deblur":
 
                 # 1) load Restormer architecture
-                restormer_arch_path = (
-                    "./github_models/Restormer/basicsr/models/archs/restormer_arch.py"
-                )
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                restormer_arch_path = f"{current_dir}/github_models/Restormer/basicsr/models/archs/restormer_arch.py"
                 arch_dict = run_path(restormer_arch_path)
                 Restormer = arch_dict["Restormer"]
 
@@ -539,7 +538,7 @@ class ImageDeblurringTools(GroupedTools):
                 model = Restormer(**parameters)
 
                 # 3) load pretrained weights
-                ckpt_path = "./github_models/Restormer/Defocus_Deblurring/pretrained_models/single_image_defocus_deblurring.pth"
+                ckpt_path = f"{current_dir}/github_models/Restormer/Defocus_Deblurring/pretrained_models/single_image_defocus_deblurring.pth"
                 checkpoint = torch.load(ckpt_path, map_location="cpu")
                 model.load_state_dict(checkpoint["params"])
 

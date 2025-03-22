@@ -145,7 +145,7 @@ class GlobalToolConfig:
     max_num_generated_tokens = 40
     max_ep_len = 100  # max length of episode (= max number of tokens to be generated)
 
-    # 工具-token 映射
+    # tool-token mapping
     tool_token_vocabulary = {
         "Image Classification": sop_token + 2,
         "Colorization": sop_token + 3,
@@ -165,7 +165,7 @@ class GlobalToolConfig:
     }
     tool_token_vocabulary_reverse = {v: k for k, v in tool_token_vocabulary.items()}
 
-    # 工具依赖-token 映射
+    # dependency-token mapping
     dependency_token_vocabulary = {
         "Image Classification": sod_token + 2,
         "Colorization": sod_token + 3,
@@ -247,7 +247,7 @@ class GlobalToolConfig:
         "in:image,text-out:text": ["Visual Question Answering"],
         "in:text,text-out:text": ["Question Answering"],
     }
-    # 同上，但使用 token
+    # same as above, but using tokens
     tool_token_io_dict_collection = {
         "in:image-out:image": [
             tool_token_vocabulary["Colorization"],
@@ -282,7 +282,7 @@ class GlobalToolConfig:
     }
 
     tool_dependencies = {
-        # e.g. 'Colorization': ['Image Super Resolution', ...] 表示后者输出可供前者输入
+        # e.g. 'Colorization': ['Image Super Resolution', ...] means that Colorization depends on Image Super Resolution
         "Colorization": [
             "Image Super Resolution",
             "Image Deblurring",
@@ -354,8 +354,6 @@ class GlobalDataConfig:
 
 @dataclass
 class ModelConfig:
-    """单个模型的注册配置项"""
-
     task_name: Literal[
         "sentiment_analysis",
         "image_classification",
@@ -376,8 +374,6 @@ class ModelConfig:
     model_name: str
     source: Literal["huggingface", "github"]
     hf_url: Optional[str]
-
-    # 仅作为示例：可根据具体项目需求再行维护
 
 
 MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
@@ -429,22 +425,22 @@ MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
             hf_url="nlpconnect/vit-gpt2-image-captioning",
         )
     },
-    "text_to_image": {
-        "stable-diffusion-v1-4": ModelConfig(
-            task_name="text_to_image",
-            model_name="stable-diffusion-v1-4",
-            source="huggingface",
-            hf_url="CompVis/stable-diffusion-v1-4",
-        )
-    },
-    "question_answering": {
-        "distilbert-squad": ModelConfig(
-            task_name="question_answering",
-            model_name="distilbert-squad",
-            source="huggingface",
-            hf_url="distilbert-base-cased-distilled-squad",
-        )
-    },
+    # "text_to_image": {
+    #     "stable-diffusion-v1-4": ModelConfig(
+    #         task_name="text_to_image",
+    #         model_name="stable-diffusion-v1-4",
+    #         source="huggingface",
+    #         hf_url="CompVis/stable-diffusion-v1-4",
+    #     )
+    # },
+    # "question_answering": {
+    #     "distilbert-squad": ModelConfig(
+    #         task_name="question_answering",
+    #         model_name="distilbert-squad",
+    #         source="huggingface",
+    #         hf_url="distilbert-base-cased-distilled-squad",
+    #     )
+    # },
     "text_summarization": {
         "bart-cnn": ModelConfig(
             task_name="text_summarization",
