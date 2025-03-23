@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 from evaluate import load
 
-from src.config import EVALUATOR_DEVICE_LIST, GlobalMetricsConfig, log
+from src.config import EVALUATOR_DEVICE_LIST, GlobalPathConfig, GlobalMetricsConfig, log
 from src.utils import get_available_device
 
 _evaluator = None
@@ -23,10 +23,10 @@ class Evaluator:
     def __init__(self):
         log.info("Initializing Evaluator with BERTScore and ViT models...")
 
-        self._bert_score_evaluator = load("bertscore")
+        self._bert_score_evaluator = load("bertscore", cache_dir=GlobalPathConfig.hf_cache)
 
-        self._vit_score_evaluator = AutoModel.from_pretrained("nateraw/vit-base-beans")
-        self._vit_extractor = AutoFeatureExtractor.from_pretrained("nateraw/vit-base-beans")
+        self._vit_score_evaluator = AutoModel.from_pretrained("nateraw/vit-base-beans", cache_dir=GlobalPathConfig.hf_cache)
+        self._vit_extractor = AutoFeatureExtractor.from_pretrained("nateraw/vit-base-beans", cache_dir=GlobalPathConfig.hf_cache)
 
         device = get_available_device(EVALUATOR_DEVICE_LIST)
 
@@ -50,10 +50,8 @@ class Evaluator:
         """
         # image1 and image2 are assumed to have shape [batch_size, ...]
         # If you have a single image, batch_size = 1
-        if not isinstance(image1, list) and not isinstance(image1, np.ndarray):
-            log.warning("image1 is not a list/array. Make sure the input is correct.")
-        if not isinstance(image2, list) and not isinstance(image2, np.ndarray):
-            log.warning("image2 is not a list/array. Make sure the input is correct.")
+        
+        # todo: check this method
 
         batch_size = len(image1)
         model = self._vit_score_evaluator
@@ -116,7 +114,7 @@ class Evaluator:
         return float(score)
 
 
-def get_image_similarity(image1, image2):
+def get_vit_score(image1, image2):
     """
     A global helper function to compute image similarity using the default Evaluator.
     """

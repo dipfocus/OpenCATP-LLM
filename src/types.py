@@ -43,8 +43,7 @@ TaskName = Literal[
 ModelName = str
 
 
-@dataclass
-class CostInfo:
+class CostInfo(TypedDict):
     """
     CostInfo is a dictionary that contains the cost information of a tool.
     """

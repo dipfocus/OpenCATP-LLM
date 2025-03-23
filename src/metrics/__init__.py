@@ -1,2 +1,2 @@
 from .runtime_cost import CPUMemoryMonitor
-from .evaluator import get_image_similarity, get_bert_score
+from .evaluator import get_vit_score, get_bert_score, calculate_qop

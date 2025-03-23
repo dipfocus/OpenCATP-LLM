@@ -244,12 +244,11 @@ class PlanNode:
             raise RuntimeError("Costs information is not set for this node.")
 
         # Price for short-term CPU and GPU
-        short_term_cpu_price = self.costs.short_term_cpu_memory * Mcfg.cpu_short_memory_pricing_per_mb
-        short_term_gpu_price = self.costs.short_term_gpu_memory * Mcfg.cpu_short_memory_pricing_per_mb
+        short_term_cpu_price = self.costs["short_term_cpu_memory"] * Mcfg.cpu_short_memory_pricing_per_mb
+        short_term_gpu_price = self.costs["short_term_gpu_memory"] * Mcfg.gpu_short_memory_pricing_per_mb
 
-        # Potentially reversed or mislabeled in config - verify correctness
-        long_term_cpu_memory = Mcfg.tools_gpu_long_term_mem[self.task_name]
-        long_term_gpu_memory = Mcfg.tools_cpu_long_term_mem[self.task_name]
+        long_term_cpu_memory = Mcfg.tools_cpu_long_term_mem[self.task_name]
+        long_term_gpu_memory = Mcfg.tools_gpu_long_term_mem[self.task_name]
 
         long_term_cpu_memory_tiers = sorted(Mcfg.cpu_long_memory_pricing.keys())
         long_term_gpu_memory_tiers = sorted(Mcfg.gpu_long_memory_pricing.keys())
@@ -263,11 +262,9 @@ class PlanNode:
         long_term_cpu_price_unit = Mcfg.cpu_long_memory_pricing[long_term_cpu_memory_tiers[cpu_index]]
         long_term_gpu_price_unit = Mcfg.gpu_long_memory_pricing[long_term_gpu_memory_tiers[gpu_index]]
 
-        price = self.costs.exec_time * (
-                long_term_cpu_memory * long_term_cpu_price_unit
-                + self.costs.short_term_cpu_memory * short_term_cpu_price
-                + long_term_gpu_memory * long_term_gpu_price_unit
-                + self.costs.short_term_gpu_memory * short_term_gpu_price
+        price = self.costs["exec_time"] * (
+                long_term_cpu_memory * long_term_cpu_price_unit + short_term_cpu_price
+                + long_term_gpu_memory * long_term_gpu_price_unit + short_term_gpu_price
         ) + Mcfg.price_per_request
 
         self.price = price

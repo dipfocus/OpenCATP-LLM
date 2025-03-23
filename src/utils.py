@@ -44,6 +44,10 @@ def normalize_task_name(source: str) -> TaskName:
             source = DEFAULT_START_TASK_NAME
         case 'colorization':
             source = 'image_colorization'
+        case 'text_to_image_generation':
+            source = 'text_to_image'
+        case 'fill_mask':
+            source = 'mask_filling'
         case _:
             pass
     target = cast(TaskName, source)

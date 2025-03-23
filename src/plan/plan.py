@@ -122,9 +122,13 @@ class Plan:
         """
 
         for node in self.graph.nodes.values():
-            print(node.node_id, node.task_name, node.model_name)
             if node.is_start_point:
                 node.set_value(input_data)
+                node.costs = {
+                    "exec_time": 0.0,
+                    "short_term_cpu_memory": 0.0,
+                    "short_term_gpu_memory": 0.0,
+                }
                 continue
 
             # Get the input data from all parent nodes
@@ -135,7 +139,6 @@ class Plan:
                 current_input.update(source_node.get_value())
 
             tool = self.tools[(node.task_name, node.model_name)]
-
             result, costs = tool.execute(current_input, cost_aware=cost_aware)
             node.set_value(result)
             node.costs = costs
@@ -163,10 +166,12 @@ class Plan:
         """
         price_sum = 0.0
         for node in self.graph.nodes.values():
-            if node.costs is None:
-                # If no cost info, attempt to calculate price anyway (may raise error internally)
+            if node is self.graph.start_node:
+                node.price = 0.0
+            else:
                 node.calculate_price_and_save()
-            price_sum += node.price or 0.0
+            
+            price_sum += node.price
 
         self.price = price_sum
         return price_sum
@@ -201,7 +206,7 @@ class Plan:
                     )
 
             # Add this node's own time
-            node_exec_time = current_node.costs.exec_time if current_node.costs else 0.0
+            node_exec_time = current_node.costs["exec_time"] if current_node.costs else 0.0
             current_node.critical_exec_time = node_exec_time + max_parent_time
 
             exec_time_total = max(exec_time_total, current_node.critical_exec_time)
@@ -232,6 +237,22 @@ class Plan:
         except KeyError:
             # todo: Handle invalid plan
             raise NotImplementedError("Invalid plan detected. Please check the plan structure.")
-        log.info("Cleaning up tools...")
+        self.is_done = True
         self.clean_tools()
+        log.info("Tools clean up. If you want to clean up the entire plan, call plan.cleanup().")
+        
         return results
+
+    def cleanup(self, clean_tools=True) -> None:
+        """
+        Clean up the entire Plan, including:
+        1. Clear and reset all attributes, including graph, tools, is_done, price, exec_time, etc.
+        2. Call clean_tools() to release or unload all tools;
+        """
+        self.graph = None
+        self.tools.clear()
+        self.is_done = False
+        self.price = 0.0
+        self.exec_time = 0.0
+        if clean_tools:
+            self.clean_tools()

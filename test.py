@@ -10,7 +10,7 @@ from src.plan import Plan
 from src.utils import print_graph
 from src.data_loader import TaskDataset
 from src.tools import tool_manager
-from src.metrics.evaluator import get_image_similarity, get_bert_score, calculate_qop
+from src.metrics import get_vit_score, get_bert_score, calculate_qop
 
 with open("./train_data_plan_map.json", "r") as f:
     data = json.load(f)
@@ -23,6 +23,8 @@ for task_info in data.values():
     plans = task_info["plans"]
     break
 
+# tool_manager.load_models()
+
 plan = Plan(plans[0])
 graph = plan.graph
 data_set = TaskDataset(DATA_PATH, task_id=task_id)
@@ -32,5 +34,11 @@ for batch in data_loader:
     sample_id = batch["sample_id"]
     input_data = batch["input"]
     output_data = batch["output"]
-    plan.execute(input_data)
-    break
+    result = plan.execute(input_data)
+    if 'image' in result:
+        vit_score = get_vit_score(result['image'], output_data['image'])
+    if 'text' in result:
+        bert_score = get_bert_score(result['text'], output_data['text'])
+    print(vit_score, bert_score)
+
+print("done")
