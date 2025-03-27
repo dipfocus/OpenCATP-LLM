@@ -6,15 +6,19 @@ from typing import Dict, Literal, Optional
 
 from loguru import logger as log
 
-from src.types import TaskName, ModelName
+from .types import TaskName, ModelName
+
+current_file_path = os.path.abspath(__file__)
+src_dir = os.path.dirname(current_file_path)
+home_dir = os.path.dirname(src_dir)
 
 # Constants that should typically be reset based on the device environment
-HOME_DIR = '/home/wuduo/notmuch/projects/llm_tool_planning/'
-DATA_DIR = '/home/data/wuduo/llm_tool_planning/'
-PRETRAINED_LLM_DIR = '/home/data/pretrained_llms/'
+DATA_PATH = "/home/data/OpenCATP_LLM/dataset"
+PRETRAINED_LLM_DIR = "/home/data/pretrained_llms/"
 
-TOOL_DEVICE_LIST = ['cuda:1', 'cuda:2']
-# the minimum GPU memory allocation limit
+TOOL_DEVICE_LIST = ["cuda:0", "cuda:1"]
+EVALUATOR_DEVICE_LIST = ["cuda:2", "cuda:3"]
+# the minimum GPU memory allocation limit, default is 3GB
 TOOL_GPU_MEMORY_ALLOC_LIMIT = 3 * 1024 ** 3
 
 # log config when using loguru
@@ -29,39 +33,46 @@ LOG_FORMAT_CONSOLE = (
 API_BASE = "https://api.chatanywhere.tech/v1"
 API_KEY = "sk-CelumY6pSozc9ZVHQSbjdVNk10LxRONiIBo5JxgRUxHShq5z"
 
-DEFAULT_START_TASK_NAME = 'Input'
+DEFAULT_START_TASK_NAME = "input"
 
+OLD_KEYS = [
+    "Image Classification",
+    "Colorization",
+    "Object Detection",
+    "Image Deblurring",
+    "Image Denoising",
+    "Image Super Resolution",
+    "Image Captioning",
+    "Text to Image Generation",
+    "Visual Question Answering",
+    "Sentiment Analysis",
+    "Question Answering",
+    "Text Summarization",
+    "Text Generation",
+    "Machine Translation",
+    "Fill Mask",
+]
 
 @dataclass
 class GlobalPathConfig:
-    hf_cache = os.path.join(DATA_DIR, "../hf_cache/")
-    github_models = os.path.join(HOME_DIR, "research/github_models/")
-    data_path = os.path.join(DATA_DIR, "openagi_data/")
-    result_path = os.path.join(HOME_DIR, "research/results/")
-    finetune_path = os.path.join(DATA_DIR, "models/finetune")
+    hf_cache = os.path.join(home_dir, "hf_cache/")
+    data_path = os.path.join(home_dir, "dataset/")
+    result_path = os.path.join(home_dir, "results/")
 
 
 @dataclass
 class GlobalTaskConfig:
     default_train_tasks = [
-        1, 4, 5, 6, 7, 9, 12, 13, 14, 19, 20, 23, 24, 25, 26, 30, 31, 32, 33, 34, 35, 36, 37, 38, 40, 41, 43, 44,
-        46, 47, 48, 50, 51, 52, 53, 54, 56, 57, 59, 60, 63, 64, 65, 67, 68, 71, 72, 73, 74, 77, 79, 80, 81, 82, 83,
-        85, 86, 87, 88, 90, 91, 92, 94, 95, 97, 98, 99, 101, 103, 114, 112, 107
+        1, 4, 5, 6, 7, 9, 12, 13, 14, 19, 20, 23, 24, 25, 26, 30, 31, 32, 33, 34, 35, 36, 37, 38, 40, 41, 43, 44, 46,
+        47, 48, 50, 51, 52, 53, 54, 56, 57, 59, 60, 63, 64, 65, 67, 68, 71, 72, 73, 74, 77, 79, 80, 81, 82, 83, 85, 86,
+        87, 88, 90, 91, 92, 94, 95, 97, 98, 99, 101, 103, 114, 112, 107,
     ]
     default_eval_tasks = [
-        2, 3, 11, 15, 17, 21, 22, 28, 42, 58, 61, 66, 69, 70, 78, 100, 102, 104, 109
+        2, 3, 11, 15, 17, 21, 22, 28, 42, 58, 61, 66, 69, 70, 78, 100, 102, 104, 109,
     ]
     default_test_tasks = [
-        0, 8, 10, 16, 18, 27, 29, 39, 45, 49, 55, 62, 75, 76, 84, 89, 93, 96, 108, 110, 111
+        0, 8, 10, 16, 18, 27, 29, 39, 45, 49, 55, 62, 75, 76, 84, 89, 93, 96, 108, 110, 111,
     ]
-
-    # 评估集和测试集的样本选取（从已有文件加载）
-    # default_eval_task_samples = pickle.load(
-    #     open(os.path.join(result_path, 'selected_sample_eval.pkl'), 'rb')
-    # )
-    # default_test_task_samples = pickle.load(
-    #     open(os.path.join(result_path, 'selected_sample_test.pkl'), 'rb')
-    # )
 
 
 @dataclass
@@ -76,38 +87,38 @@ class GlobalMetricsConfig:
     cost_penalty = 2  # penalty assigned to the costs of invalid plans
 
     tools_cpu_long_term_mem = {
-        "Image Classification": 1788.50390625,
-        "Colorization": 1626.96875,
-        "Object Detection": 1684.6875,
-        "Image Deblurring": 1693.83984375,
-        "Image Denoising": 1690.15625,
-        "Image Super Resolution": 1540.8515625,
-        "Image Captioning": 2449.8359375,
-        "Text to Image Generation": 6746.109375,
-        "Visual Question Answering": 1953.0234375,
-        "Sentiment Analysis": 1719.6875,
-        "Question Answering": 1696.2734375,
-        "Text Summarization": 3321.2578125,
-        "Text Generation": 1937.03125,
-        "Machine Translation": 2388.72265625,
-        "Fill Mask": 1712.41796875
+        "image_classification": 1788.50390625,
+        "image_colorization": 1626.96875,
+        "object_detection": 1684.6875,
+        "image_deblurring": 1693.83984375,
+        "image_denoising": 1690.15625,
+        "image_super_resolution": 1540.8515625,
+        "image_captioning": 2449.8359375,
+        "text_to_image": 6746.109375,
+        "visual_question_answering": 1953.0234375,
+        "sentiment_analysis": 1719.6875,
+        "question_answering": 1696.2734375,
+        "text_summarization": 3321.2578125,
+        "text_generation": 1937.03125,
+        "machine_translation": 2388.72265625,
+        "mask_filling": 1712.41796875,
     }
     tools_gpu_long_term_mem = {
-        "Image Classification": 330.2294921875,
-        "Colorization": 131.31689453125,
-        "Object Detection": 234.7177734375,
-        "Image Deblurring": 99.74462890625,
-        "Image Denoising": 99.67431640625,
-        "Image Super Resolution": 47.52490234375,
-        "Image Captioning": 937.234375,
-        "Text to Image Generation": 5252.0234375,
-        "Visual Question Answering": 449.14599609375,
-        "Sentiment Analysis": 256.49755859375,
-        "Question Answering": 249.19384765625,
-        "Text Summarization": 1550.06689453125,
-        "Text Generation": 487.46875,
-        "Machine Translation": 850.3095703125,
-        "Fill Mask": 256.61376953125
+        "image_classification": 330.2294921875,
+        "image_colorization": 131.31689453125,
+        "object_detection": 234.7177734375,
+        "image_deblurring": 99.74462890625,
+        "image_denoising": 99.67431640625,
+        "image_super_resolution": 47.52490234375,
+        "image_captioning": 937.234375,
+        "text_to_image": 5252.0234375,
+        "visual_question_answering": 449.14599609375,
+        "sentiment_analysis": 256.49755859375,
+        "question_answering": 249.19384765625,
+        "text_summarization": 1550.06689453125,
+        "text_generation": 487.46875,
+        "machine_translation": 850.3095703125,
+        "mask_filling": 256.61376953125,
     }
 
     # Long-term cpu memory pricing tiers. Data format: {memory_size(MB): price(USD)} per ms
@@ -152,178 +163,204 @@ class GlobalToolConfig:
     max_num_generated_tokens = 40
     max_ep_len = 100  # max length of episode (= max number of tokens to be generated)
 
-    # 工具-token 映射
+    # tool-token mapping
     tool_token_vocabulary = {
-        "Image Classification": sop_token + 2,
-        "Colorization": sop_token + 3,
-        "Object Detection": sop_token + 4,
-        "Image Deblurring": sop_token + 5,
-        "Image Denoising": sop_token + 6,
-        "Image Super Resolution": sop_token + 7,
-        "Image Captioning": sop_token + 8,
-        "Text to Image Generation": sop_token + 9,
-        "Visual Question Answering": sop_token + 10,
-        "Sentiment Analysis": sop_token + 11,
-        "Question Answering": sop_token + 12,
-        "Text Summarization": sop_token + 13,
-        "Text Generation": sop_token + 14,
-        "Machine Translation": sop_token + 15,
-        "Fill Mask": sop_token + 16
+        "image_classification": sop_token + 2,
+        "image_colorization": sop_token + 3,
+        "object_detection": sop_token + 4,
+        "image_deblurring": sop_token + 5,
+        "image_denoising": sop_token + 6,
+        "image_super_resolution": sop_token + 7,
+        "image_captioning": sop_token + 8,
+        "text_to_image": sop_token + 9,
+        "visual_question_answering": sop_token + 10,
+        "sentiment_analysis": sop_token + 11,
+        "question_answering": sop_token + 12,
+        "text_summarization": sop_token + 13,
+        "text_generation": sop_token + 14,
+        "machine_translation": sop_token + 15,
+        "mask_filling": sop_token + 16,
     }
-    tool_token_vocabulary_reverse = {
-        v: k for k, v in tool_token_vocabulary.items()
-    }
+    tool_token_vocabulary_reverse = {v: k for k, v in tool_token_vocabulary.items()}
 
-    # 工具依赖-token 映射
+    # dependency-token mapping
     dependency_token_vocabulary = {
-        "Image Classification": sod_token + 2,
-        "Colorization": sod_token + 3,
-        "Object Detection": sod_token + 4,
-        "Image Deblurring": sod_token + 5,
-        "Image Denoising": sod_token + 6,
-        "Image Super Resolution": sod_token + 7,
-        "Image Captioning": sod_token + 8,
-        "Text to Image Generation": sod_token + 9,
-        "Visual Question Answering": sod_token + 10,
-        "Sentiment Analysis": sod_token + 11,
-        "Question Answering": sod_token + 12,
-        "Text Summarization": sod_token + 13,
-        "Text Generation": sod_token + 14,
-        "Machine Translation": sod_token + 15,
-        "Fill Mask": sod_token + 16,
-        "Input of Query": sod_token + 17
+        "image_classification": sod_token + 2,
+        "image_colorization": sod_token + 3,
+        "object_detection": sod_token + 4,
+        "image_deblurring": sod_token + 5,
+        "image_denoising": sod_token + 6,
+        "image_super_resolution": sod_token + 7,
+        "image_captioning": sod_token + 8,
+        "text_to_image": sod_token + 9,
+        "visual_question_answering": sod_token + 10,
+        "sentiment_analysis": sod_token + 11,
+        "question_answering": sod_token + 12,
+        "text_summarization": sod_token + 13,
+        "text_generation": sod_token + 14,
+        "machine_translation": sod_token + 15,
+        "mask_filling": sod_token + 16,
+        "Input of Query": sod_token + 17,
     }
     dependency_token_vocabulary_reverse = {
         v: k for k, v in dependency_token_vocabulary.items()
     }
 
     tool_io_dict = {
-        "Colorization": ['image', 'image'],
-        "Image Denoising": ['image', 'image'],
-        "Image Deblurring": ['image', 'image'],
-        "Image Super Resolution": ['image', 'image'],
-        "Image Classification": ['image', 'text'],
-        "Image Captioning": ['image', 'text'],
-        "Object Detection": ['image', 'text'],
-        "Text Summarization": ['text', 'text'],
-        "Text Generation": ['text', 'text'],
-        "Machine Translation": ['text', 'text'],
-        "Fill Mask": ['text', 'text'],
-        "Sentiment Analysis": ['text', 'text'],
-        "Text to Image Generation": ['text', 'image'],
-        "Question Answering": ['text-text', 'text'],
-        "Visual Question Answering": ['image-text', 'text']
+        "image_colorization": ["image", "image"],
+        "image_denoising": ["image", "image"],
+        "image_deblurring": ["image", "image"],
+        "image_super_resolution": ["image", "image"],
+        "image_classification": ["image", "text"],
+        "image_captioning": ["image", "text"],
+        "object_detection": ["image", "text"],
+        "text_summarization": ["text", "text"],
+        "text_generation": ["text", "text"],
+        "machine_translation": ["text", "text"],
+        "mask_filling": ["text", "text"],
+        "sentiment_analysis": ["text", "text"],
+        "text_to_image": ["text", "image"],
+        "question_answering": ["text-text", "text"],
+        "visual_question_answering": ["image-text", "text"],
     }
 
     tool_token_io_dict = {
-        tool_token_vocabulary["Colorization"]: ['image', 'image'],
-        tool_token_vocabulary["Image Denoising"]: ['image', 'image'],
-        tool_token_vocabulary["Image Deblurring"]: ['image', 'image'],
-        tool_token_vocabulary["Image Super Resolution"]: ['image', 'image'],
-        tool_token_vocabulary["Image Classification"]: ['image', 'text'],
-        tool_token_vocabulary["Image Captioning"]: ['image', 'text'],
-        tool_token_vocabulary["Object Detection"]: ['image', 'text'],
-        tool_token_vocabulary["Text Summarization"]: ['text', 'text'],
-        tool_token_vocabulary["Text Generation"]: ['text', 'text'],
-        tool_token_vocabulary["Machine Translation"]: ['text', 'text'],
-        tool_token_vocabulary["Fill Mask"]: ['text', 'text'],
-        tool_token_vocabulary["Sentiment Analysis"]: ['text', 'text'],
-        tool_token_vocabulary["Text to Image Generation"]: ['text', 'image'],
-        tool_token_vocabulary["Question Answering"]: ['text-text', 'text'],
-        tool_token_vocabulary["Visual Question Answering"]: ['image-text', 'text']
+        tool_token_vocabulary["image_colorization"]: ["image", "image"],
+        tool_token_vocabulary["image_denoising"]: ["image", "image"],
+        tool_token_vocabulary["image_deblurring"]: ["image", "image"],
+        tool_token_vocabulary["image_super_resolution"]: ["image", "image"],
+        tool_token_vocabulary["image_classification"]: ["image", "text"],
+        tool_token_vocabulary["image_captioning"]: ["image", "text"],
+        tool_token_vocabulary["object_detection"]: ["image", "text"],
+        tool_token_vocabulary["text_summarization"]: ["text", "text"],
+        tool_token_vocabulary["text_generation"]: ["text", "text"],
+        tool_token_vocabulary["machine_translation"]: ["text", "text"],
+        tool_token_vocabulary["mask_filling"]: ["text", "text"],
+        tool_token_vocabulary["sentiment_analysis"]: ["text", "text"],
+        tool_token_vocabulary["text_to_image"]: ["text", "image"],
+        tool_token_vocabulary["question_answering"]: ["text-text", "text"],
+        tool_token_vocabulary["visual_question_answering"]: ["image-text", "text"],
     }
 
     tool_io_dict_collection = {
-        'in:image-out:image': [
-            'Colorization', 'Image Denoising', 'Image Deblurring', 'Image Super Resolution'
+        "in:image-out:image": [
+            "image_colorization",
+            "image_denoising",
+            "image_deblurring",
+            "image_super_resolution",
         ],
-        'in:image-out:text': [
-            'Image Classification', 'Image Captioning', 'Object Detection'
+        "in:image-out:text": [
+            "image_classification",
+            "image_captioning",
+            "object_detection",
         ],
-        'in:text-out:text': [
-            'Text Summarization', 'Text Generation', 'Machine Translation',
-            'Fill Mask', 'Sentiment Analysis'
+        "in:text-out:text": [
+            "text_summarization",
+            "text_generation",
+            "machine_translation",
+            "mask_filling",
+            "sentiment_analysis",
         ],
-        'in:text-out:image': [
-            'Text to Image Generation'
-        ],
-        'in:image,text-out:text': [
-            'Visual Question Answering'
-        ],
-        'in:text,text-out:text': [
-            'Question Answering'
-        ],
+        "in:text-out:image": ["text_to_image"],
+        "in:image,text-out:text": ["visual_question_answering"],
+        "in:text,text-out:text": ["question_answering"],
     }
-    # 同上，但使用 token
+    # same as above, but using tokens
     tool_token_io_dict_collection = {
-        'in:image-out:image': [
-            tool_token_vocabulary['Colorization'],
-            tool_token_vocabulary['Image Denoising'],
-            tool_token_vocabulary['Image Deblurring'],
-            tool_token_vocabulary['Image Super Resolution']
+        "in:image-out:image": [
+            tool_token_vocabulary["image_colorization"],
+            tool_token_vocabulary["image_denoising"],
+            tool_token_vocabulary["image_deblurring"],
+            tool_token_vocabulary["image_super_resolution"],
         ],
-        'in:image-out:text': [
-            tool_token_vocabulary['Image Classification'],
-            tool_token_vocabulary['Image Captioning'],
-            tool_token_vocabulary['Object Detection']
+        "in:image-out:text": [
+            tool_token_vocabulary["image_classification"],
+            tool_token_vocabulary["image_captioning"],
+            tool_token_vocabulary["object_detection"],
         ],
-        'in:text-out:text': [
-            tool_token_vocabulary['Text Summarization'],
-            tool_token_vocabulary['Text Generation'],
-            tool_token_vocabulary['Machine Translation'],
-            tool_token_vocabulary['Fill Mask'],
-            tool_token_vocabulary['Sentiment Analysis']
+        "in:text-out:text": [
+            tool_token_vocabulary["text_summarization"],
+            tool_token_vocabulary["text_generation"],
+            tool_token_vocabulary["machine_translation"],
+            tool_token_vocabulary["mask_filling"],
+            tool_token_vocabulary["sentiment_analysis"],
         ],
-        'in:text-out:image': [
-            tool_token_vocabulary['Text to Image Generation']
-        ],
-        'in:image,text-out:text': [
-            tool_token_vocabulary['Visual Question Answering']
-        ],
-        'in:text,text-out:text': [
-            tool_token_vocabulary['Question Answering']
-        ],
+        "in:text-out:image": [tool_token_vocabulary["text_to_image"]],
+        "in:image,text-out:text": [tool_token_vocabulary["visual_question_answering"]],
+        "in:text,text-out:text": [tool_token_vocabulary["question_answering"]],
     }
 
     task_io_dict = {
-        'in:image-out:image': set(range(0, 15)),
-        'in:image-out:text': set(range(15, 105)),
-        'in:text-out:image': set(range(105, 108)),
-        'in:text-out:text': set(range(108, 126)),
-        'in:image,text-out:text': set(range(126, 171)),
-        'in:text,text-out:text': set(range(171, 188)),
+        "in:image-out:image": set(range(0, 15)),
+        "in:image-out:text": set(range(15, 105)),
+        "in:text-out:image": set(range(105, 108)),
+        "in:text-out:text": set(range(108, 126)),
+        "in:image,text-out:text": set(range(126, 171)),
+        "in:text,text-out:text": set(range(171, 188)),
     }
 
     tool_dependencies = {
-        # e.g. 'Colorization': ['Image Super Resolution', ...] 表示后者输出可供前者输入
-        'Colorization': ['Image Super Resolution', 'Image Deblurring', 'Image Denoising'],
-        'Image Super Resolution': ['Colorization', 'Image Deblurring', 'Image Denoising'],
-        'Image Deblurring': ['Colorization', 'Image Super Resolution', 'Image Denoising'],
-        'Image Denoising': ['Colorization', 'Image Super Resolution', 'Image Deblurring'],
-        'Image Captioning': [],
-        'Image Classification': [],
-        'Object Detection': [],
-        'Machine Translation': [],
-        'Sentiment Analysis': [],
-        'Text Summarization': [],
-        'Fill Mask': [],
-        'Text Generation': [],
-        'Text to Image Generation': [],
+        # e.g. 'image_colorization': ['image_super_resolution', ...] means that image_colorization depends on image_super_resolution
+        "image_colorization": [
+            "image_super_resolution",
+            "image_deblurring",
+            "image_denoising",
+        ],
+        "image_super_resolution": [
+            "image_colorization",
+            "image_deblurring",
+            "image_denoising",
+        ],
+        "image_deblurring": [
+            "image_colorization",
+            "image_super_resolution",
+            "image_denoising",
+        ],
+        "image_denoising": [
+            "image_colorization",
+            "image_super_resolution",
+            "image_deblurring",
+        ],
+        "image_captioning": [],
+        "image_classification": [],
+        "object_detection": [],
+        "machine_translation": [],
+        "sentiment_analysis": [],
+        "text_summarization": [],
+        "mask_filling": [],
+        "text_generation": [],
+        "text_to_image": [],
     }
     tool_dependencies_reverse = {
-        'Colorization': ['Image Super Resolution', 'Image Deblurring', 'Image Denoising'],
-        'Image Super Resolution': ['Colorization', 'Image Deblurring', 'Image Denoising'],
-        'Image Deblurring': ['Colorization', 'Image Super Resolution', 'Image Denoising'],
-        'Image Denoising': ['Colorization', 'Image Super Resolution', 'Image Deblurring'],
-        'Image Captioning': [],
-        'Image Classification': [],
-        'Object Detection': [],
-        'Machine Translation': [],
-        'Sentiment Analysis': [],
-        'Text Summarization': [],
-        'Fill Mask': [],
-        'Text Generation': [],
-        'Text to Image Generation': [],
+        "image_colorization": [
+            "image_super_resolution",
+            "image_deblurring",
+            "image_denoising",
+        ],
+        "image_super_resolution": [
+            "image_colorization",
+            "image_deblurring",
+            "image_denoising",
+        ],
+        "image_deblurring": [
+            "image_colorization",
+            "image_super_resolution",
+            "image_denoising",
+        ],
+        "image_denoising": [
+            "image_colorization",
+            "image_super_resolution",
+            "image_deblurring",
+        ],
+        "image_captioning": [],
+        "image_classification": [],
+        "object_detection": [],
+        "machine_translation": [],
+        "sentiment_analysis": [],
+        "text_summarization": [],
+        "mask_filling": [],
+        "text_generation": [],
+        "text_to_image": [],
     }
 
 
@@ -335,19 +372,26 @@ class GlobalDataConfig:
 
 @dataclass
 class ModelConfig:
-    """ 单个模型的注册配置项 """
     task_name: Literal[
-        "sentiment_analysis", "image_classification", "image_colorization",
-        "object_detection", "image_super_resolution", "image_captioning",
-        "text_to_image", "question_answering", "text_summarization",
-        "text_generation", "visual_question_answering", "machine_translation",
-        "mask_filling", "image_deblurring", "image_denoising"
+        "sentiment_analysis",
+        "image_classification",
+        "image_colorization",
+        "object_detection",
+        "image_super_resolution",
+        "image_captioning",
+        "text_to_image",
+        "question_answering",
+        "text_summarization",
+        "text_generation",
+        "visual_question_answering",
+        "machine_translation",
+        "mask_filling",
+        "image_deblurring",
+        "image_denoising",
     ]
     model_name: str
-    source: Literal['huggingface', 'github']
+    source: Literal["huggingface", "github"]
     hf_url: Optional[str]
-
-    # 仅作为示例：可根据具体项目需求再行维护
 
 
 MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
@@ -364,7 +408,7 @@ MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
             task_name="image_classification",
             model_name="vit-base",
             source="huggingface",
-            hf_url="google/vit-base-patch16-224"
+            hf_url="google/vit-base-patch16-224",
         )
     },
     "image_colorization": {
@@ -399,22 +443,22 @@ MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
             hf_url="nlpconnect/vit-gpt2-image-captioning",
         )
     },
-    "text_to_image": {
-        "stable-diffusion-v1-4": ModelConfig(
-            task_name="text_to_image",
-            model_name="stable-diffusion-v1-4",
-            source="huggingface",
-            hf_url="CompVis/stable-diffusion-v1-4",
-        )
-    },
-    "question_answering": {
-        "distilbert-squad": ModelConfig(
-            task_name="question_answering",
-            model_name="distilbert-squad",
-            source="huggingface",
-            hf_url="distilbert-base-cased-distilled-squad",
-        )
-    },
+    # "text_to_image": {
+    #     "stable-diffusion-v1-4": ModelConfig(
+    #         task_name="text_to_image",
+    #         model_name="stable-diffusion-v1-4",
+    #         source="huggingface",
+    #         hf_url="CompVis/stable-diffusion-v1-4",
+    #     )
+    # },
+    # "question_answering": {
+    #     "distilbert-squad": ModelConfig(
+    #         task_name="question_answering",
+    #         model_name="distilbert-squad",
+    #         source="huggingface",
+    #         hf_url="distilbert-base-cased-distilled-squad",
+    #     )
+    # },
     "text_summarization": {
         "bart-cnn": ModelConfig(
             task_name="text_summarization",
@@ -460,7 +504,7 @@ MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
             task_name="image_deblurring",
             model_name="restormer-deblur",
             source="github",
-            hf_url=None
+            hf_url=None,
         )
     },
     "image_denoising": {
@@ -468,14 +512,14 @@ MODEL_REGISTRY: Dict[TaskName, Dict[ModelName, ModelConfig]] = {
             task_name="image_denoising",
             model_name="restormer-denoise",
             source="github",
-            hf_url=None
+            hf_url=None,
         )
     },
 }
 
 log.remove()
-log.add(sys.stdout, level='INFO', colorize=True, format=LOG_FORMAT_CONSOLE)
+log.add(sys.stdout, level="INFO", colorize=True, format=LOG_FORMAT_CONSOLE)
 log.add(
-    f'logs/{datetime.now().strftime("%Y-%m-%d")}.log',
-    level='DEBUG'
+    f'{current_file_path}/../../logs/{datetime.now().strftime("%Y-%m-%d")}.log',
+    level="DEBUG",
 )

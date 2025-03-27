@@ -1,7 +1,28 @@
 from dataclasses import dataclass
-from typing import Tuple, Any, Dict, Literal
+from typing import List, Literal, TypedDict, NotRequired
 
-ArgsType = (Tuple, Dict[str, Any])
+from torch import Tensor
+
+SampleID = int
+TextContent = str
+
+
+# Terrible Python Type Hints Made Us Do This
+class DataIncludeImage(TypedDict):
+    image: List[Tensor]
+    text: NotRequired[List[TextContent]]
+
+
+class DataIncludeText(TypedDict):
+    image: NotRequired[List[Tensor]]
+    text: List[TextContent]
+
+
+class DataIncludeImageAndText(TypedDict):
+    image: List[Tensor]
+    text: List[TextContent]
+
+
 TaskName = Literal[
     'sentiment_analysis',
     'machine_translation',
@@ -21,8 +42,8 @@ TaskName = Literal[
 ]
 ModelName = str
 
-@dataclass
-class CostInfo:
+
+class CostInfo(TypedDict):
     """
     CostInfo is a dictionary that contains the cost information of a tool.
     """
