@@ -1,28 +1,26 @@
 # OpenCATP-LLM
 
-OpenCATP代码库
+OpenCATP codebase
 
-## Get Start
+## Getting Started
 
-1. 安装python，推荐使用版本>=3.12
+1. Install Python (recommended version >= 3.12).
 
-2. 执行命令：
+2. Run the following command:
 
    ```bash
    pip install -r requirements.txt
    ```
 
-   Note: requirements中标注dev dependencies仅用于开发，如无需debug可不安装
+3. On the first run, tools and HF models will be dynamically downloaded to the `hf_cache` path specified in the config. For tasks using GitHub-based models, please refer to the corresponding subdirectory’s README (or check the runtime error messages) to download the model weights and place them in the specified folder.
 
-3. 首次运行时，会基于动态导入下载tool hf models至config中标注的hf_cache路径。对于使用github model的任务，需按照对应子目录中的readme文件（可参照运行时错误信息）下载model weight并放入特定文件夹下。
+4. Please configure the config manually or place the dataset under `./dataset`. The dataset can be obtained from [this link](https://drive.google.com/file/d/1wmxcp-rdxdPgS2UxTXvnQsFgOsrEfmVI/view?usp=drive_link).
 
-4. 请手动配置config或将数据集放在./dataset路径下。数据集可从[此链接](https://drive.google.com/file/d/1wmxcp-rdxdPgS2UxTXvnQsFgOsrEfmVI/view?usp=drive_link)获取
-
-5. 一个普通测试用例参考test.py
+5. For a simple test case, see `test.py`.
 
 ## Source Code
 
-主要代码统一放置在src目录中: 
+The main code is located in the `src` directory:
 
 ```
 ./src
@@ -47,296 +45,272 @@ OpenCATP代码库
 └── utils.py
 ```
 
-关键的问题：
+Key issues:
 
-- 代码里含todo的部分
-- invalid plan的metric
-- 复杂non_seq的结果收集问题。
+- There are `TODO` parts in the code.
+- The metric for an invalid plan.
+- Challenges in collecting results from complex non-sequential tasks.
 
-
-
-关键代码部分举例（大部分是ai，**架构为了debug有些延迟循环引用来不及改了，无法进行文档生成**）
+Below is an example of key code sections (most of it is AI-based. **Due to the debug-oriented architecture, some delayed circular references haven’t been fixed yet, so documentation generation is currently not possible**).
 
 ## 1. `src/plan/plan.py`
 
-### 主要类
+### Main Class
 
 #### `Plan`
 
-- **用途**
-   封装了一个执行计划（PlanGraph）及所需的所有工具（Tool），并管理工具的生命周期。提供执行整个计划图、计算价格和执行时间，以及收集最终结果的功能。
-- **主要属性**
-  - `graph`: `PlanGraph` 对象，表示整个执行流程的有向图。
-  - `tools`: 字典，键为 `(TaskName, ModelName)` 元组，值为对应的 `Tool` 实例。
-  - `is_done`: 布尔值，表示该计划是否已执行完毕。
-  - `price`: `float`，执行所有节点后累计的价格。
-  - `exec_time`: `float`，表示执行整条关键路径消耗的时间。
-- **主要方法**
+- **Purpose**
+   Encapsulates an execution plan (`PlanGraph`) along with all required tools (`Tool`), and manages tool lifecycles. Offers methods to run the entire plan graph, calculate cost and runtime, and collect the final output.
+- **Primary Attributes**
+  - `graph`: A `PlanGraph` instance representing the directed graph of the entire workflow.
+  - `tools`: A dictionary whose keys are `(TaskName, ModelName)` tuples, and values are the corresponding `Tool` instances.
+  - `is_done`: A boolean indicating whether the plan has finished execution.
+  - `price`: A `float` storing the accumulated cost after executing all nodes.
+  - `exec_time`: A `float` indicating the total runtime of the critical path.
+- **Key Methods**
   1. `__init__(plan_info: Any = None)`
-     - **功能**
-        初始化 Plan 对象。如果提供了 `plan_info`，则构建对应的 `PlanGraph`。
-     - 参数
-       - `plan_info`: 描述任务和依赖关系的结构化信息（类型不固定）。
+     - **Function**
+        Initializes the `Plan` object. If `plan_info` is provided, constructs the corresponding `PlanGraph`.
+     - **Parameter**
+       - `plan_info`: Structured information (type may vary) describing tasks and dependencies.
   2. `create_graph_from_plan_info(plan_info: Any) -> None`
-     - **功能**
-        从给定的 `plan_info` 数据中解析并创建 `PlanGraph` 的节点与边。
-     - 参数
-       - `plan_info`: 用于描述任务及其依赖结构的对象。
+     - **Function**
+        Parses `plan_info` and creates nodes and edges for the `PlanGraph`.
+     - **Parameter**
+       - `plan_info`: Object describing tasks and their dependency structure.
   3. `prepare_tools() -> None`
-     - **功能**
-        预加载并分配执行计划所需的所有工具（`Tool`）。如果工具默认是 CPU 模式，则尝试切换到可用的 GPU 上。
+     - **Function**
+        Preloads and allocates all `Tool` instances required by the execution plan. If a tool is by default in CPU mode, tries to move it to an available GPU.
   4. `clean_tools() -> None`
-     - **功能**
-        释放或卸载已用工具，将其移动回 CPU 并清理缓存。
+     - **Function**
+        Frees or unloads the used tools, moves them back to CPU, and clears caches.
   5. `_execute_on_graph(input_data: Any, cost_aware: bool) -> None`
-     - **功能**
-        按拓扑顺序或依赖顺序执行图中每个节点的操作，将结果存放到对应节点中。
-     - 参数
-       - `input_data: Any`: 初始输入数据，用于起始节点。
-       - `cost_aware: bool`: 是否进行资源及成本统计。
+     - **Function**
+        Executes each node in topological or dependency order, storing the result in each node.
+     - **Parameters**
+       - `input_data`: Initial input data for the starting node.
+       - `cost_aware`: Whether to track resource and cost statistics.
   6. `collect_results() -> Dict[TaskName, Any]`
-     - **功能**
-        收集计划中所有终端节点（end-point）的输出，并整合到一个字典里返回。
+     - **Function**
+        Collects outputs from all end-point nodes in the plan and returns them as a dictionary.
   7. `calculate_price_and_save() -> float`
-     - **功能**
-        根据各节点的成本信息和预定义的价格配置，计算出整条执行计划的累计价格，并存入 `self.price`。
+     - **Function**
+        Calculates the accumulated cost of the entire plan based on each node’s cost information and predefined pricing configurations, saving the value to `self.price`.
   8. `calculate_exec_time_and_save() -> float`
-     - **功能**
-        通过类似 BFS 的方式计算计划的关键路径总执行时间，并存入 `self.exec_time`。
+     - **Function**
+        Uses a BFS-like method to compute the total execution time of the plan’s critical path and saves it to `self.exec_time`.
   9. `execute(input_data: Any, cost_aware: bool = True) -> Any`
-     - **功能**
-        综合调用一系列方法（`prepare_tools()`、`_execute_on_graph()`、`collect_results()`、`calculate_exec_time_and_save()`、`calculate_price_and_save()` 等），完成计划的整体执行流程并返回结果。
-     - 参数
-       - `input_data: Any`: 计划执行的起始输入数据。
-       - `cost_aware: bool`: 是否收集和计算执行成本。
+     - **Function**
+        Calls a series of methods (`prepare_tools()`, `_execute_on_graph()`, `collect_results()`, `calculate_exec_time_and_save()`, `calculate_price_and_save()`, etc.) to run the entire plan and return the output.
+     - **Parameters**
+       - `input_data`: Input data for the plan’s starting node.
+       - `cost_aware`: Whether to track and compute execution costs.
   10. `cleanup(clean_tools: bool = True) -> None`
-      - **功能**
-         清理 Plan 对象，释放资源，包括图、工具、价格和执行时间等信息的重置。
-      - 参数
-        - `clean_tools`: 是否在清理前调用 `clean_tools()`。
-
-------
+      - **Function**
+         Cleans up the `Plan` object and frees resources, resetting its graph, tools, pricing, and execution time.
+      - **Parameter**
+        - `clean_tools`: Whether to call `clean_tools()` first.
 
 ## 2. `src/plan_graph.py`
 
-### 主要类
+### Main Class
 
 #### `PlanGraph`
 
-- **用途**
-   维护一个有向图结构，包含对节点和边的维护以及添加、移除节点和边的方法。
+- **Purpose**  
+  Maintains a directed graph structure, including the methods for managing nodes and edges such as adding, removing, etc.
 
-- **主要属性**
+- **Primary Attributes**  
+  - `name_to_id`: A dictionary mapping task names (`TaskName`) to node IDs.  
+  - `nodes`: A dictionary with `node_id` as the key and the corresponding `PlanNode` instance as the value.  
+  - `edges`: A dictionary with `edge_id` as the key and the corresponding `PlanEdge` instance as the value.
 
-  - `name_to_id`: 将任务名 (`TaskName`) 映射到节点 ID 的字典。
-  - `nodes`: 以 `node_id` 为键，对应 `PlanNode` 实例的字典。
-  - `edges`: 以 `edge_id` 为键，对应 `PlanEdge` 实例的字典。
-
-- **主要方法**
-
-  1. `__init__()`
-
-     - **功能**
-        初始化图结构，并自动创建一个默认的起始节点（`DEFAULT_START_TASK_NAME`）。
-
-  2. `start_node`
-
-      (property)
-
-     - **功能**
-        返回默认的起始节点（通常是 `node_id=0`）。
-
-  3. `add_node(...) -> PlanNode`
-
-     - **功能**
-        向图中添加一个新的 `PlanNode`，并注册其 task_name 到 node_id 的映射。
-     - 主要参数
-       - `task_name: TaskName`: 节点对应的任务名
-       - `model_name: Optional[ModelName]`
-       - `is_start_point: bool`
-       - `is_end_point: bool`
+- **Key Methods**  
+  1. `__init__()`  
+     - **Function**  
+       Initializes the graph structure, automatically creating a default start node (`DEFAULT_START_TASK_NAME`).
+  2. `start_node` (property)  
+     - **Function**  
+       Returns the default start node (usually with `node_id=0`).
+  3. `add_node(...) -> PlanNode`  
+     - **Function**  
+       Adds a new `PlanNode` to the graph and registers the mapping from `task_name` to `node_id`.  
+     - **Key Parameters**  
+       - `task_name: TaskName`  
+       - `model_name: Optional[ModelName]`  
+       - `is_start_point: bool`  
+       - `is_end_point: bool`  
        - ...
-
-  4. `get_or_add_node(task_name: TaskName) -> PlanNode`
-
-     - **功能**
-        根据任务名获取已有节点，如不存在则创建新的节点。
-
-  5. `add_edge(source: PlanNode, target: PlanNode) -> PlanEdge`
-
-     - **功能**
-        在图中创建一条从 `source` 到 `target` 的有向边，并更新双方状态。
-
-  6. `remove_node(node_id: NodeID) -> None`
-
-     - **功能**
-        根据 `node_id` 移除对应节点，并同时移除相关的边。
-
-  7. `remove_edge(edge_id: EdgeID) -> None`
-
-     - **功能**
-        根据 `edge_id` 移除对应的边，并更新源节点和目标节点的关系。
+  4. `get_or_add_node(task_name: TaskName) -> PlanNode`  
+     - **Function**  
+       Retrieves an existing node by task name; if it doesn’t exist, creates a new one.
+  5. `add_edge(source: PlanNode, target: PlanNode) -> PlanEdge`  
+     - **Function**  
+       Creates a directed edge from `source` to `target` in the graph, and updates both nodes accordingly.
+  6. `remove_node(node_id: NodeID) -> None`  
+     - **Function**  
+       Removes the node with the specified `node_id` and all associated edges.
+  7. `remove_edge(edge_id: EdgeID) -> None`  
+     - **Function**  
+       Removes the edge with the specified `edge_id` and updates the source and target nodes accordingly.
 
 #### `PlanNode`
 
-- **用途**
-   表示 `PlanGraph` 中的节点，包含任务名、模型名及数据、执行信息等。
-- **主要属性**
-  - `node_id`: 节点 ID。
-  - `task_name`: 任务名称。
-  - `model_name`: 可选的模型名称。
-  - `is_start_point`: 是否是起始节点。
-  - `is_end_point`: 是否是终端节点。
-  - `value`: 节点的存储值（执行结果）。
-  - `costs`: 节点的执行成本信息（参考 `CostInfo`）。
-  - `price`: 节点执行所需的价格。
-  - `critical_exec_time`: 节点在关键路径上的累计执行时间。
-  - `in_edges`, `out_edges`: 分别存储入边和出边的弱引用字典。
-- **主要方法**
-  1. `__init__(...)`
-     - **功能**
-        初始化节点时，设置各种属性并创建空的 `in_edges`、`out_edges`。
-  2. `get_value() -> Any`
-     - **功能**
-        获取节点当前存储的结果。
-  3. `set_value(value: Any) -> None`
-     - **功能**
-        向节点写入结果，并标记节点执行完成。
-  4. `calculate_price_and_save() -> float`
-     - **功能**
-        根据节点的成本信息和配置（`Mcfg`）计算执行价格，存入 `self.price` 并返回。
+- **Purpose**  
+  Represents a node in the `PlanGraph`, containing task name, model name, data, execution info, etc.
+
+- **Primary Attributes**  
+  - `node_id`: Unique node ID.  
+  - `task_name`: Name of the task for this node.  
+  - `model_name`: Optional name of the model.  
+  - `is_start_point`: Whether this node is a start node.  
+  - `is_end_point`: Whether this node is an end node.  
+  - `value`: The stored value/result of the node’s execution.  
+  - `costs`: Execution cost information for this node (see `CostInfo`).  
+  - `price`: The price of executing the node.  
+  - `critical_exec_time`: The accumulated runtime on the critical path.  
+  - `in_edges`, `out_edges`: Weak-reference dictionaries for incoming and outgoing edges, respectively.
+
+- **Key Methods**  
+  1. `__init__(...)`  
+     - **Function**  
+       Initializes the node with various attributes and sets up empty `in_edges` and `out_edges`.  
+  2. `get_value() -> Any`  
+     - **Function**  
+       Returns the current stored result for the node.  
+  3. `set_value(value: Any) -> None`  
+     - **Function**  
+       Stores a result in the node and marks the node as completed.  
+  4. `calculate_price_and_save() -> float`  
+     - **Function**  
+       Calculates the node’s price based on cost data and config (`Mcfg`), saves it to `self.price`, and returns the value.
 
 #### `PlanEdge`
 
-- **用途**
-   表示图中一条有向边，存储对源节点和目标节点的弱引用，以及对所属图的引用。
-- **主要属性**
-  - `edge_id`: 边 ID。
-  - `source`: 源节点的弱引用。
-  - `target`: 目标节点的弱引用。
-- **主要方法**
-  - `__init__(edge_id: EdgeID, source: PlanNode, target: PlanNode)`
-    - **功能**
-       初始化时记录边 ID，以及源、目标节点引用。
+- **Purpose**  
+  A directed edge in the graph, storing weak references to the source and target nodes, as well as a reference to the parent graph.
+
+- **Primary Attributes**  
+  - `edge_id`: Unique edge ID.  
+  - `source`: Weak reference to the source node.  
+  - `target`: Weak reference to the target node.
+
+- **Key Methods**  
+  - `__init__(edge_id: EdgeID, source: PlanNode, target: PlanNode)`  
+    - **Function**  
+      Initializes the edge with the given `edge_id` and source/target references.
 
 ------
 
 ## 3. `src/tool/tool.py`
 
-### 主要类
+### Main Class
 
 #### `Tool`
 
-- **用途**
-   封装对单个模型或可执行过程的操作，并可选地进行资源使用监控（如 CPU/GPU 占用、执行时间等）。
+- **Purpose**  
+  Wraps a single model or executable process, optionally monitoring resource usage (CPU/GPU usage, execution time, etc.).
 
-- **主要属性**
+- **Primary Attributes**  
+  - `config: ModelConfig`: Configuration info for the model.  
+  - `model: Optional[torch.nn.Module]`: A PyTorch model instance.  
+  - `process: Optional[Callable[..., Any]]`: A callable for inference or other custom operations.  
+  - `options: Dict[str, Any]`: Extra initialization options.  
+  - `_device: str`: The current device (e.g., `cpu` or `cuda:0`) on which the model resides.
 
-  - `config: ModelConfig`: 模型的配置信息。
-  - `model: Optional[torch.nn.Module]`: PyTorch 模型实例。
-  - `process: Optional[Callable[..., Any]]`: 用于执行推理或其他自定义操作的可调用对象。
-  - `options: Dict[str, Any]`: 存储初始化时传入的额外选项。
-  - `_device: str`: 当前模型所在的设备（`cpu` 或类似 `cuda:0`）。
-
-- **主要方法**
-
-  1. `__init__(config, model, process=None, device='cpu', **kwargs)`
-
-     - **功能**
-        初始化时记录模型及其配置，并将模型移动到指定设备，设置为 eval 模式。
-     - 参数
-       - `config: ModelConfig`
-       - `model: torch.nn.Module`
-       - `process: Optional[Callable[..., Any]]`
-       - `device: str`
-       - `kwargs: Any` 其他选项。
-
-  2. `device`
-
-      (property) 及对应的 setter
-
-     - **功能**
-        获取或设置模型当前所在的计算设备，并在 setter 中同时移动模型到该设备。
-
-  3. `to(device: str) -> None`
-
-     - **功能**
-        手动将模型移动到指定设备。
-
-  4. `execute(*args: Any, cost_aware: bool, **kwargs: Any) -> Any`
-
-     - **功能**
-        执行 `process` 函数。如果 `cost_aware` 为真，则进行 CPU/GPU 内存和执行时间的监控，并返回结果和监控数据。
-     - 参数
-       - `cost_aware: bool`: 是否收集执行的资源成本信息。
-       - 其他 `*args` 和 `**kwargs` 会传递给 `process`。
+- **Key Methods**  
+  1. `__init__(config, model, process=None, device='cpu', **kwargs)`  
+     - **Function**  
+       Records the model and its configuration, moves it to the specified device, and sets it to eval mode.  
+     - **Parameters**  
+       - `config: ModelConfig`  
+       - `model: torch.nn.Module`  
+       - `process: Optional[Callable[..., Any]]`  
+       - `device: str`  
+       - `kwargs: Any` (additional options)
+  2. `device` (property) & setter  
+     - **Function**  
+       Gets or sets the model’s current device; the setter moves the model to that device.
+  3. `to(device: str) -> None`  
+     - **Function**  
+       Manually moves the model to the specified device.
+  4. `execute(*args: Any, cost_aware: bool, **kwargs: Any) -> Any`  
+     - **Function**  
+       Runs the `process` function. If `cost_aware` is true, gathers CPU/GPU memory usage and execution time metrics, then returns both the result and metric info.  
+     - **Parameters**  
+       - `cost_aware: bool`  
+       - Other `*args` and `**kwargs` are passed to the `process`.
 
 ------
 
 ## 4. `src/tool/tool_manager.py`
 
-### 主要类
+### Main Class
 
 #### `ToolManager`
 
-- **用途**
-   根据任务类型（`TaskName`）集中管理不同类型的工具（`Tool`），负责加载、列出、获取指定任务和模型的工具实例。
-- **主要属性**
-  - `tool_cls_groups: Dict[TaskName, Type[GroupedTools]]`: 用于映射任务名称到对应的工具组类。
-  - `tool_groups: Dict[TaskName, GroupedTools]`: 运行时存储已实例化的工具组。
-- **主要方法**
-  1. `__init__()`
-     - **功能**
-        初始化一个空的 `tool_groups` 字典。
-  2. `load_model(task_name: TaskName, model_name: ModelName) -> None`
-     - **功能**
-        加载指定任务和模型对应的工具组，在内部完成模型的初始化或缓存。
-  3. `load_models(task_name: TaskName = 'all_tasks', model_name: ModelName = 'all_models') -> None`
-     - **功能**
-        根据参数决定一次性加载所有任务/所有模型，或只加载指定任务/模型。
-  4. `list_models() -> Dict[TaskName, List[ModelName]]`
-     - **功能**
-        汇总 `tool_groups` 中所有已加载的模型信息，返回按任务分类的模型名称列表。
-  5. `get_model(task_name: TaskName, model_name: ModelName) -> Tool`
-     - **功能**
-        获取已加载的指定任务、指定模型的 `Tool` 实例。如果 `model_name` 为空，则自动使用默认模型（在 `MODEL_REGISTRY` 中的第一个）。
+- **Purpose**  
+  Manages various tools (`Tool`) for different task types (`TaskName`), responsible for loading, listing, and retrieving tool instances for specified tasks/models.
+
+- **Primary Attributes**  
+  - `tool_cls_groups: Dict[TaskName, Type[GroupedTools]]`: Maps task names to their corresponding grouped tool classes.  
+  - `tool_groups: Dict[TaskName, GroupedTools]`: Stores instantiated grouped tools at runtime.
+
+- **Key Methods**  
+  1. `__init__()`  
+     - **Function**  
+       Initializes an empty `tool_groups` dictionary.
+  2. `load_model(task_name: TaskName, model_name: ModelName) -> None`  
+     - **Function**  
+       Loads the tool group for the specified task/model, handling internal initialization or caching of the model.
+  3. `load_models(task_name: TaskName = 'all_tasks', model_name: ModelName = 'all_models') -> None`  
+     - **Function**  
+       Depending on the parameters, loads all models for all tasks, or only specific tasks/models.
+  4. `list_models() -> Dict[TaskName, List[ModelName]]`  
+     - **Function**  
+       Compiles a list of all loaded models grouped by task, returning a dictionary keyed by task name.
+  5. `get_model(task_name: TaskName, model_name: ModelName) -> Tool`  
+     - **Function**  
+       Retrieves a loaded `Tool` instance for the specified task/model. If `model_name` is not provided, uses the default (the first model in `MODEL_REGISTRY`).
 
 ------
 
 ## 5. `src/dataloader.py`
 
-### 主要类
+### Main Class
 
 #### `TaskDataset`
 
-- **用途**
-   一个 PyTorch 风格的 `Dataset`，用于加载图片和文本任务数据，数据按 `sample_id` 编排。
-- **主要属性**
-  - `input_data`: 存储所有输入的字典（键为 `sample_id`，值为对应的图像或文本张量/内容）。
-  - `output_data`: 存储对应输出的字典。
-  - `sample_ids`: 有序的样本 ID 列表，用于索引。
-- **主要方法**
-  1. `__init__(data_path: str, *, task_id: int)`
-     - **功能**
-        根据给定的 `data_path` 和 `task_id` 初始化并加载对应任务的数据。
-     - 参数
-       - `data_path: str`: 数据根目录。
-       - `task_id: int`: 任务 ID，用于拼接成具体路径。
-  2. `_load_images(image_dir_path: str) -> Dict[SampleID, Dict[str, torch.Tensor]]`
-     - **功能**
-        从指定路径加载图像文件，转换为张量并按 `sample_id` 存储。
-  3. `_load_text(file_path: str) -> Dict[SampleID, Dict[str, TextContent]]`
-     - **功能**
-        从文本文件加载每行内容，并按行号映射到 `sample_id`。
-  4. `_load_files(dir_path: str) -> Dict[SampleID, Dict[str, torch.Tensor | TextContent]]`
-     - **功能**
-        识别指定目录下的 `images` 文件夹或 `.txt` 文件，并调用相应方法加载数据，最终按样本 ID 整合。
-  5. `_load_data() -> None`
-     - **功能**
-        根据输入、输出路径分别读取数据，并更新 `input_data` 和 `output_data`。
-  6. `__getitem__(index: int) -> Dict[str, int | Dict[str, torch.Tensor | TextContent]]`
-     - **功能**
-        按索引返回一个样本的完整数据，包括样本 ID、输入和输出。
-  7. `__len__() -> int`
-     - **功能**
-        返回数据集的样本数量。
+- **Purpose**  
+  A PyTorch-style `Dataset` for loading both image and text task data, with samples indexed by `sample_id`.
+
+- **Primary Attributes**  
+  - `input_data`: A dictionary keyed by `sample_id`, with each value being the corresponding image/tensor or text content.  
+  - `output_data`: A dictionary of outputs keyed by the same `sample_id`.  
+  - `sample_ids`: A list of sample IDs for indexing.
+
+- **Key Methods**  
+  1. `__init__(data_path: str, *, task_id: int)`  
+     - **Function**  
+       Initializes and loads data for the specified task using `data_path` and `task_id`.  
+     - **Parameters**  
+       - `data_path: str`  
+       - `task_id: int`
+  2. `_load_images(image_dir_path: str) -> Dict[SampleID, Dict[str, torch.Tensor]]`  
+     - **Function**  
+       Loads image files from the specified path, converts them to tensors, and stores them by `sample_id`.
+  3. `_load_text(file_path: str) -> Dict[SampleID, Dict[str, TextContent]]`  
+     - **Function**  
+       Loads each line from a text file, mapping line numbers to `sample_id`.
+  4. `_load_files(dir_path: str) -> Dict[SampleID, Dict[str, torch.Tensor | TextContent]]`  
+     - **Function**  
+       Identifies `images` folders or `.txt` files in the specified directory, calls the respective loading methods, and merges the data by sample ID.
+  5. `_load_data() -> None`  
+     - **Function**  
+       Reads data from the input/output paths and updates `input_data` and `output_data`.
+  6. `__getitem__(index: int) -> Dict[str, int | Dict[str, torch.Tensor | TextContent]]`  
+     - **Function**  
+       Returns the complete data for a single sample (including sample ID, input, and output) by index.
+  7. `__len__() -> int`  
+     - **Function**  
+       Returns the number of samples in the dataset.
