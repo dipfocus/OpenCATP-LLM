@@ -1,6 +1,16 @@
 # OpenCATP-LLM
 
-OpenCATP codebase
+Hi! This is the official codebase of CATP-LLM and OpenCATP of the paper ``CATP-LLM: Empowering Large Language Models for Cost-Aware Tool Planning''.
+
+What is *CATP-LLM*?: CATP-LLM is the first framework that enables the LLMs to effectively balance the trade-off between task performance and execution costs (e.g., tool execution time) during tool planning or using.
+
+What is *OpenCATP*?: OpenCATP is the first platform to evaluate the performance of LLMs in cost-aware tool planning, which features diverse tools and difficult tasks, as well as a comprehensive scheme to measure the tool execution costs.
+
+TODO List:
+
+- [x] Release OpenCATP.
+- [ ] Release CATP-LLM.
+- [ ] Release model weights of CATP-LLM (after acceptance).
 
 ## Getting Started
 
