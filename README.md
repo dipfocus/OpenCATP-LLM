@@ -10,11 +10,13 @@ TODO List:
 
 - [x] Release OpenCATP.
 - [ ] Release CATP-LLM.
+  - [x] Release Training Codes
+  - [ ] Release Testing Codes
 - [ ] Release model weights of CATP-LLM (after acceptance).
 
 ## Getting Started
 
-1. Install Python (recommended version >= 3.12).
+1. Install Python (recommended version >= 3.11.9).
 
 2. Run the following command:
 
