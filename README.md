@@ -14,7 +14,7 @@ TODO List:
   - [ ] Release Testing Codes
 - [ ] Release model weights of CATP-LLM (after acceptance).
 
-We are actively maintaining this repo following the TODO list. Please stay tuned! :)
+We will keep updating this repo following the TODO list. This may take some time. Please stay tuned! :)
 
 ## Getting Started
 
