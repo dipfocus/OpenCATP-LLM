@@ -3,9 +3,7 @@ import sys
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Dict, Literal, Optional
-
 from loguru import logger as log
-
 from .types import TaskName, ModelName
 
 current_file_path = os.path.abspath(__file__)
@@ -18,8 +16,8 @@ PRETRAINED_LLM_DIR = "/home/data/pretrained_llms/"
 
 TOOL_DEVICE_LIST = ["cuda:0", "cuda:1"]
 EVALUATOR_DEVICE_LIST = ["cuda:2", "cuda:3"]
-# the minimum GPU memory allocation limit, default is 3GB
-TOOL_GPU_MEMORY_ALLOC_LIMIT = 3 * 1024 ** 3
+# the minimum GPU memory allocation limit, default is 32GB
+TOOL_GPU_MEMORY_ALLOC_LIMIT = 32 * 1024 ** 3
 
 # log config when using loguru
 LOG_FORMAT_CONSOLE = (
@@ -29,35 +27,15 @@ LOG_FORMAT_CONSOLE = (
     " - <level>{message}</level>"
 )
 
-# todo: remove this before release
-API_BASE = "https://api.chatanywhere.tech/v1"
-API_KEY = "sk-CelumY6pSozc9ZVHQSbjdVNk10LxRONiIBo5JxgRUxHShq5z"
+DEFAULT_START_TASK_NAME = "input_of_query"
 
-DEFAULT_START_TASK_NAME = "input"
-
-OLD_KEYS = [
-    "Image Classification",
-    "Colorization",
-    "Object Detection",
-    "Image Deblurring",
-    "Image Denoising",
-    "Image Super Resolution",
-    "Image Captioning",
-    "Text to Image Generation",
-    "Visual Question Answering",
-    "Sentiment Analysis",
-    "Question Answering",
-    "Text Summarization",
-    "Text Generation",
-    "Machine Translation",
-    "Fill Mask",
-]
 
 @dataclass
 class GlobalPathConfig:
     hf_cache = os.path.join(home_dir, "hf_cache/")
     data_path = os.path.join(home_dir, "dataset/")
     result_path = os.path.join(home_dir, "results/")
+    finetune_path = os.path.join(home_dir, 'finetune_models')
 
 
 @dataclass
@@ -146,8 +124,6 @@ class GlobalMetricsConfig:
     gpu_short_memory_pricing_per_mb = cpu_short_memory_pricing_per_mb * 3
     price_per_request = 0.0000002
 
-    # tool_prices = pickle.load(open(result_path + 'all_tools_prices.pkl', 'rb'))
-
 
 @dataclass
 class GlobalToolConfig:
@@ -200,7 +176,7 @@ class GlobalToolConfig:
         "text_generation": sod_token + 14,
         "machine_translation": sod_token + 15,
         "mask_filling": sod_token + 16,
-        "Input of Query": sod_token + 17,
+        DEFAULT_START_TASK_NAME: sod_token + 17,
     }
     dependency_token_vocabulary_reverse = {
         v: k for k, v in dependency_token_vocabulary.items()
@@ -362,6 +338,26 @@ class GlobalToolConfig:
         "text_generation": [],
         "text_to_image": [],
     }
+
+    tool_prices = {
+        'image_colorization': [0.02064448408770396, 0.030365631874341062, 0.03283418516591483, 0.20662706942016817],
+        'mask_filling': [0.0007191801038195274, 0.0011161143430851086, 0.0011966995137895854, 0.001151140264732181],
+        'image_captioning': [0.07681041316118693, 0.0789306347162341, 0.0856651295420851, 0.15344758910825465],
+        'image_classification': [0.0018386416371498659, 0.002039574896674113, 0.001632744822041972, 0.003468827901294199],
+        'image_deblurring': [0.044596890616843535, 0.0763150490990877, 0.1770620811739597, 1.1910876856898132],
+        'image_denoising': [0.03310938232453873, 0.05553857351136441, 0.126780926718445, 0.8438447906436202],
+        'image_super_resolution': [0.12710071314082524, 0.17339502868541215, 0.3204404321613257, 1.8004475979612815],
+        'machine_translation': [0.0514501296757946, 0.07495833137293198, 0.17899568650893222, 0.1265572219738673],
+        'object_detection': [0.008221186114819342, 0.007555937255849043, 0.007457512004008459, 0.010285611128207868],
+        'question_answering': [0.000651189057222963, 0.0005230975314769352, 0.0005303616164152156, 0.000673727151311317],
+        'sentiment_analysis': [0.0009301707022420854, 0.0007762505455430947, 0.0007021147041751504, 0.0009259290352010135],
+        'text_generation': [0.01703311232198894, 0.002373261885790527, 0.003585298728325665, 0.0037642009109413624],
+        'text_summarization': [0.4399955272843922, 0.44162034375878384, 0.47984100235254135, 0.4836095130016943],
+        'text_to_image': [30.41944787973723, 30.44826792797344, 30.441494159301133, 30.410528955212857],
+        'visual_question_answering': [0.004567494635659777, 0.004190168623573798, 0.005081711239834369, 0.009299321594933435]}
+    
+    # tool_prices_file = os.path.join(src_dir, 'catpllm/data/training_data/all_tools_prices.pkl')
+    # tool_prices = pickle.load(open(tool_prices_file, 'rb')) if os.path.exists(tool_prices_file) else None
 
 
 @dataclass
