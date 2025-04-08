@@ -135,8 +135,11 @@ class SentimentAnalysisTools(GroupedTools):
                     with torch.no_grad():
                         model_output = model(**inputs)
 
-                    # Grab the argmax of logits
-                    pred_ids = torch.argmax(model_output.logits, dim=1)
+                    # Apply softmax to get probabilities
+                    probabilities = torch.softmax(model_output.logits, dim=-1)
+                    
+                    # Grab the argmax of probabilities
+                    pred_ids = torch.argmax(probabilities, dim=1)
                     pred_labels = [model.config.id2label[p.item()] for p in pred_ids]
                     new_data = {"text": pred_labels}
 
@@ -297,7 +300,9 @@ class ObjectDetectionTools(GroupedTools):
                     )
 
                     final_outputs = []
+                    predicted_results = []
                     for r in results:
+                        output = ""
                         boxes = r["boxes"].cpu().tolist()
                         scores = r["scores"].cpu().tolist()
                         labels = r["labels"].cpu().tolist()
@@ -305,8 +310,12 @@ class ObjectDetectionTools(GroupedTools):
                         final_outputs.append(
                             {"boxes": boxes, "scores": scores, "labels": label_names}
                         )
+                        for label_name in label_names:
+                            output += label_name
+                            output += ", "
+                        predicted_results.append(output[:-2])
 
-                    new_data = {"object_detection_information": final_outputs}
+                    new_data = {"object_detection_information": final_outputs, 'text': predicted_results}
                     updated_data = input_data.copy()
                     updated_data.update(new_data)
                     return updated_data
@@ -354,9 +363,9 @@ class ImageSuperResolutionTools(GroupedTools):
                     sr_images = []
                     reconstructions = outputs.reconstruction.clamp_(0, 1)
                     for i in range(reconstructions.shape[0]):
-                        out_img = reconstructions[i].permute(1, 2, 0)
+                        out_img = reconstructions[i]  # .permute(1, 2, 0)
                         out_img = (out_img.cpu().numpy() * 255.0).round().astype(np.uint8)
-                        sr_images.append(out_img)
+                        sr_images.append(torch.from_numpy(out_img))
 
                     new_data = {"image": sr_images}
                     updated_data = input_data.copy()
@@ -398,7 +407,7 @@ class ImageColorizationTools(GroupedTools):
                 ) -> DataIncludeImage:
                     colorized_images = []
                     for img in input_data["image"]:
-                        # Assume each img is shape: (C,H,W) with L channel
+                        # Assume each img is shape: (C,H,W) with C channel
                         img_np = img.permute(1, 2, 0).cpu().numpy()
                         tens_l_orig, tens_l_rs = preprocess_img(img_np, HW=(256, 256))
                         tens_l_rs = tens_l_rs.to(device)

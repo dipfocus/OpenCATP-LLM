@@ -11,13 +11,12 @@ src_dir = os.path.dirname(current_file_path)
 home_dir = os.path.dirname(src_dir)
 
 # Constants that should typically be reset based on the device environment
-DATA_PATH = "/home/data/OpenCATP_LLM/dataset"
 PRETRAINED_LLM_DIR = "/home/data/pretrained_llms/"
 
-TOOL_DEVICE_LIST = ["cuda:0", "cuda:1"]
-EVALUATOR_DEVICE_LIST = ["cuda:2", "cuda:3"]
-# the minimum GPU memory allocation limit, default is 32GB
-TOOL_GPU_MEMORY_ALLOC_LIMIT = 32 * 1024 ** 3
+TOOL_DEVICE_LIST = ["cuda:0"]
+EVALUATOR_DEVICE_LIST = ["cuda:1"]
+# the minimum GPU memory allocation limit, default is 3GB
+TOOL_GPU_MEMORY_ALLOC_LIMIT = 3 * 1024 ** 3
 
 # log config when using loguru
 LOG_FORMAT_CONSOLE = (
@@ -32,6 +31,7 @@ DEFAULT_START_TASK_NAME = "input_of_query"
 
 @dataclass
 class GlobalPathConfig:
+    # recommendation: make hf_cache, data_path, finetune_path as a soft link.
     hf_cache = os.path.join(home_dir, "hf_cache/")
     data_path = os.path.join(home_dir, "dataset/")
     result_path = os.path.join(home_dir, "results/")

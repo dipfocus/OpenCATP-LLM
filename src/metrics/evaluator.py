@@ -88,7 +88,7 @@ class Evaluator:
 
         else:
             raise NotImplementedError(f"Image similarity using {version} is not implemented.")
-
+        similarity /= 100  # normalized into [0, 1]
         return similarity
 
     def calculate_bert_score(self, text1, text2):
@@ -102,9 +102,12 @@ class Evaluator:
         Returns:
             A single float (F1 measure). Typically in the range [0, 1].
         """
+        if isinstance(text1, str):
+            text1, text2 = [text1], [text2]
+        assert isinstance(text1, list) and isinstance(text2, list)
         results = self._bert_score_evaluator.compute(
-            predictions=[text1],
-            references=[text2],
+            predictions=text1,
+            references=text2,
             model_type="microsoft/deberta-xlarge-mnli",
             device=get_available_device(EVALUATOR_DEVICE_LIST),
         )
@@ -132,6 +135,19 @@ def get_bert_score(text1, text2):
     if _evaluator is None:
         _evaluator = Evaluator()
     return _evaluator.calculate_bert_score(text1, text2)
+
+
+def calculate_task_score(vit_score, bert_score, sequential=True):
+    if sequential:
+        assert vit_score is not None or bert_score is not None
+        if vit_score is not None:
+            task_score = vit_score
+        else:
+            task_score = bert_score
+    else:
+        assert vit_score is not None and bert_score is not None
+        task_score = (vit_score + bert_score) / 2
+    return task_score
 
 
 def calculate_qop(

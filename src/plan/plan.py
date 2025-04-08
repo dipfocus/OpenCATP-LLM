@@ -235,8 +235,8 @@ class Plan:
             self.calculate_exec_time_and_save()
             self.calculate_price_and_save()
         except KeyError:
-            # todo: Handle invalid plan
-            raise NotImplementedError("Invalid plan detected. Please check the plan structure.")
+            log.info("Invalid plan detected. Please check the plan structure.")
+            results = None
         self.is_done = True
         self.clean_tools()
         log.info("Tools clean up. If you want to clean up the entire plan, call plan.cleanup().")
