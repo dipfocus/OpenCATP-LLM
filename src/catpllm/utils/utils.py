@@ -187,3 +187,19 @@ def load_yaml_config(config_file):
         f.close()
     config = munchify(config)
     return config
+
+
+def token_plan_to_opencatp_plan(token_plan):
+    """ Transfrom tokens in the tool plan into the OpenCATP form in natural language."""
+    plan = []
+    for token in token_plan:
+        if token in [GlobalToolConfig.sop_token, GlobalToolConfig.eop_token, 
+                     GlobalToolConfig.sod_token, GlobalToolConfig.eod_token]:
+            continue
+        if token < GlobalToolConfig.dependency_token_start:  # a tool token
+            plan.append(GlobalToolConfig.tool_token_vocabulary_reverse[token])
+        else:  # a dependency token
+            if type(plan[-1]) is str:
+                plan.append([])
+            plan[-1].append(GlobalToolConfig.dependency_token_vocabulary_reverse[token])
+    return plan

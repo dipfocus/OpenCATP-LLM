@@ -39,7 +39,11 @@ class Plan:
 
         # If plan_info is provided, build the graph from it.
         if plan_info:
-            self.create_graph_from_plan_info(plan_info)
+            try:
+                self.create_graph_from_plan_info(plan_info)
+            except IndexError:
+                log.info("Invalid plan detected. Please check the plan structure.")
+                
 
     def create_graph_from_plan_info(self, plan_info: Any) -> None:
         """
@@ -234,9 +238,9 @@ class Plan:
             results = self.collect_results()
             self.calculate_exec_time_and_save()
             self.calculate_price_and_save()
-        except KeyError:
-            # todo: Handle invalid plan
-            raise NotImplementedError("Invalid plan detected. Please check the plan structure.")
+        except (KeyError, TypeError):
+            log.info("Invalid plan detected. Please check the plan structure.")
+            results = None
         self.is_done = True
         self.clean_tools()
         log.info("Tools clean up. If you want to clean up the entire plan, call plan.cleanup().")

@@ -1,6 +1,7 @@
 import argparse
 import os
 import pickle
+import json
 import torch
 import numpy as np
 
@@ -10,10 +11,10 @@ from torch.optim.lr_scheduler import LambdaLR
 from munch import munchify
 from pprint import pprint
 
-from src.config import GlobalToolConfig, GlobalPathConfig, PRETRAINED_LLM_DIR
-from src.catpllm.data.plan_pool import PlanPool
+from src.config import GlobalToolConfig, GlobalPathConfig, GlobalTaskConfig, PRETRAINED_LLM_DIR
 from src.catpllm.data.plan_dataset import PlanDataset
 from src.catpllm.pipeline.train import Trainer
+from src.catpllm.pipeline.test import test_fn
 from src.catpllm.model import OfflineRLPolicy, TokenEncoder
 from src.catpllm.model.llm import peft_model
 from src.catpllm.utils.llm_utils import load_llm
@@ -68,6 +69,23 @@ def train(args, policy, plan_dataset, checkpoint_dir, best_model_dir):
     np.savetxt(train_losses_path, total_train_losses, fmt='%.6f', delimiter='\n')
 
 
+def test(args, policy, model_dir, results_dir, dataset_info, process_reward_fn):
+    if os.path.exists(model_dir):
+        policy = load_model(args, policy, model_dir)
+        print('Load model from:', model_dir)
+    else:
+        print('Model dir does not exist, skip loadding model from:', model_dir)
+        
+    target_return = dataset_info.max_return * args.target_return_scale
+    test_logs, valid_plans, invalid_plans = test_fn(args, policy, dataset_info, target_return, process_reward_fn)
+    valid_plans_path = os.path.join(results_dir, 'valid_plans.json')
+    json.dump(valid_plans, open(valid_plans_path, 'w', encoding='utf-8'), indent=4)
+    invalid_plans_path = os.path.join(results_dir, 'invalid_plans.json')
+    json.dump(invalid_plans, open(invalid_plans_path, 'w', encoding='utf-8'), indent=4)
+    print('Test time:', test_logs['time/testing'])
+    print('Results saved at:\n', 'valid plans - ', valid_plans_path, '\n', 'invalid plans - ', invalid_plans_path)
+
+
 def main(args):
     assert args.train_plan_pool is not None, "Please specify plan pools for training."
 
@@ -105,6 +123,14 @@ def main(args):
     checkpoint_dir = os.path.join(models_dir, 'checkpoint')
     best_model_dir = os.path.join(models_dir, 'best_model')
 
+    # 5. start training/testing
+    def process_reward(reward,
+                       max_reward=dataset_info.max_reward,
+                       min_reward=dataset_info.min_reward,
+                       scale=args.scale):
+        reward = min(max_reward, max(min_reward, reward))  # bound reward
+        return reward
+
     torch.backends.cudnn.benchmark = True
     if args.train:
         os.makedirs(checkpoint_dir, exist_ok=True)
@@ -112,8 +138,10 @@ def main(args):
         train(args, policy, plan_dataset, checkpoint_dir, best_model_dir)
     if args.test:
         os.makedirs(results_dir, exist_ok=True)
-        model_dir = args.model_dir if args.model_dir is not None else best_model_dir
-        # TODO
+        model_dir = args.load_model_dir if args.load_model_dir is not None else best_model_dir
+        if args.test_task_list is None:
+            args.test_task_list = GlobalTaskConfig.default_test_seq_tasks
+        test(args, policy, model_dir, results_dir, dataset_info, process_reward)
 
 
 if __name__ == "__main__":
@@ -130,7 +158,7 @@ if __name__ == "__main__":
     
     # parse the arguments
     args = parser.parse_args()
-    args.config_file = 'src/catpllm/data/config_data/default_debug.yaml'  # debug
+    # args.config_file = 'src/catpllm/data/config_data/default_debug.yaml'  # debug
     assert args.config_file is not None
     
     config = load_yaml_config(args.config_file)

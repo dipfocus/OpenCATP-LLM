@@ -88,7 +88,7 @@ class Evaluator:
 
         else:
             raise NotImplementedError(f"Image similarity using {version} is not implemented.")
-
+        similarity /= 100  # normalized into [0, 1]
         return similarity
 
     def calculate_bert_score(self, text1, text2):
@@ -102,9 +102,12 @@ class Evaluator:
         Returns:
             A single float (F1 measure). Typically in the range [0, 1].
         """
+        if isinstance(text1, str):
+            text1, text2 = [text1], [text2]
+        assert isinstance(text1, list) and isinstance(text2, list)
         results = self._bert_score_evaluator.compute(
-            predictions=[text1],
-            references=[text2],
+            predictions=text1,
+            references=text2,
             model_type="microsoft/deberta-xlarge-mnli",
             device=get_available_device(EVALUATOR_DEVICE_LIST),
         )
@@ -132,6 +135,44 @@ def get_bert_score(text1, text2):
     if _evaluator is None:
         _evaluator = Evaluator()
     return _evaluator.calculate_bert_score(text1, text2)
+
+
+def calculate_task_score(prediction, ground_truth, sequential=True):
+    scores = []
+    if sequential:
+        if 'image' in ground_truth:
+            vit_score = get_vit_score(prediction['image'], ground_truth['image'])
+            scores.append(vit_score)
+        if 'text' in ground_truth:
+            for key in prediction.keys():
+                if 'text' in key:
+                    bert_score = get_bert_score(prediction[key], ground_truth['text'])
+                    scores.append(bert_score)
+                    break
+    else:
+        if 'image' in ground_truth:
+            vit_score = get_vit_score(prediction['image'], ground_truth['image'])
+            scores.append(vit_score)
+        if 'text-object' in ground_truth:
+            if 'text-object' in prediction:
+                bert_score = get_bert_score(prediction['text-object'], ground_truth['text-object'])
+            else:
+                bert_score = 0
+            scores.append(bert_score)
+        if 'text-caption' in ground_truth:
+            if 'text-caption' in prediction:
+                bert_score = get_bert_score(prediction['text-caption'], ground_truth['text-caption'])
+            else:
+                bert_score = 0
+            scores.append(bert_score)
+        if 'text-label' in ground_truth:
+            if 'text-label' in prediction:
+                bert_score = get_bert_score(prediction['text-label'], ground_truth['text-label'])
+            else:
+                bert_score = 0
+            scores.append(bert_score)
+    task_score = np.mean(scores)
+    return task_score
 
 
 def calculate_qop(

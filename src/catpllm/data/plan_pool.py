@@ -30,7 +30,7 @@ class PlanPool:
     
     def add_sample(self, task_id, sample_id, plan, score, cost, is_module_seq=True):
         if is_module_seq:
-            # if the plan is represented as a module sequence (the default openagi plan form)
+            # if the plan is represented as a module sequence ([tool1, tool2, tool3, ...])
             # transform it into the form that is more like our tool planning language:
             # [tool1, [tool1_depedency], tool2, [tool2_dependency], ...]
             plan = plan.split(', ')
