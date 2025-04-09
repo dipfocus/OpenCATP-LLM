@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from collections import deque
 from enum import Enum
-from src.config import GlobalToolConfig
+from src.config import GlobalToolConfig, DEFAULT_START_TASK_NAME
 from src.catpllm.model.prompt import INSTRUCTION_PROMPT, TOOL_PROMPT, TASK_PROMPT, TOOL_PROMPT2_P1, TOOL_PROMPT2_P2
 from src.catpllm.utils.utils import find_sink_nodes_in_plan
 
@@ -164,7 +164,7 @@ def create_action_mask(action_logits, generated_tool_tokens, device, mode, prev_
         # rule 1: when generating dependency tokens, we should only pay attention to those 
         # associated with the previous generated tools, since we cannot generate a dependency 
         # between the current tool and the non-generated tool.
-        valid_dependency_tokens = []  # GlobalToolConfig.dependency_token_vocabuary['Input of Query']
+        valid_dependency_tokens = []  # GlobalToolConfig.dependency_token_vocabuary[DEFAULT_START_TASK_NAME]
         for tool_token in generated_tool_tokens[:-1]:
             if tool_token == GlobalToolConfig.sop_token or tool_token == GlobalToolConfig.eop_token:
                 continue
@@ -175,16 +175,16 @@ def create_action_mask(action_logits, generated_tool_tokens, device, mode, prev_
         
         # rule 2: only when the input type of the current tool matches the task input, we can add the special token of "Input of Query"
         if task_type == TaskType.Unknown:
-            valid_dependency_tokens.append(GlobalToolConfig.dependency_token_vocabulary['Input of Query'])
+            valid_dependency_tokens.append(GlobalToolConfig.dependency_token_vocabulary[DEFAULT_START_TASK_NAME])
         elif task_type in [TaskType.ImageInImageOut, TaskType.ImageInTextOut, TaskType.ImageTextInTextOut, TaskType.ImageInImageTextOut, 
                            TaskType.ImageInImageTextTextOut, TaskType.ImageInTextTextOut]:
             if 'image' in GlobalToolConfig.tool_io_dict[current_tool][0]:
-                valid_dependency_tokens.append(GlobalToolConfig.dependency_token_vocabulary['Input of Query'])
+                valid_dependency_tokens.append(GlobalToolConfig.dependency_token_vocabulary[DEFAULT_START_TASK_NAME])
         elif task_type in [TaskType.TextInImageOut, TaskType.TextInTextOut, TaskType.TextTextInTextOut, TaskType.ImageTextInTextOut]:
             if 'text' in GlobalToolConfig.tool_io_dict[current_tool][0]:
-                valid_dependency_tokens.append(GlobalToolConfig.dependency_token_vocabulary['Input of Query'])
+                valid_dependency_tokens.append(GlobalToolConfig.dependency_token_vocabulary[DEFAULT_START_TASK_NAME])
         else:
-            valid_dependency_tokens.append(GlobalToolConfig.dependency_token_vocabulary['Input of Query'])
+            valid_dependency_tokens.append(GlobalToolConfig.dependency_token_vocabulary[DEFAULT_START_TASK_NAME])
 
         # rule 3: before adding a dependency token, the special token eod cannot be activated.
         if not prev_token_is_sod:

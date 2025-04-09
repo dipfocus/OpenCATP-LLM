@@ -137,16 +137,41 @@ def get_bert_score(text1, text2):
     return _evaluator.calculate_bert_score(text1, text2)
 
 
-def calculate_task_score(vit_score, bert_score, sequential=True):
+def calculate_task_score(prediction, ground_truth, sequential=True):
+    scores = []
     if sequential:
-        assert vit_score is not None or bert_score is not None
-        if vit_score is not None:
-            task_score = vit_score
-        else:
-            task_score = bert_score
+        if 'image' in ground_truth:
+            vit_score = get_vit_score(prediction['image'], ground_truth['image'])
+            scores.append(vit_score)
+        if 'text' in ground_truth:
+            for key in prediction.keys():
+                if 'text' in key:
+                    bert_score = get_bert_score(prediction[key], ground_truth['text'])
+                    scores.append(bert_score)
+                    break
     else:
-        assert vit_score is not None and bert_score is not None
-        task_score = (vit_score + bert_score) / 2
+        if 'image' in ground_truth:
+            vit_score = get_vit_score(prediction['image'], ground_truth['image'])
+            scores.append(vit_score)
+        if 'text-object' in ground_truth:
+            if 'text-object' in prediction:
+                bert_score = get_bert_score(prediction['text-object'], ground_truth['text-object'])
+            else:
+                bert_score = 0
+            scores.append(bert_score)
+        if 'text-caption' in ground_truth:
+            if 'text-caption' in prediction:
+                bert_score = get_bert_score(prediction['text-caption'], ground_truth['text-caption'])
+            else:
+                bert_score = 0
+            scores.append(bert_score)
+        if 'text-label' in ground_truth:
+            if 'text-label' in prediction:
+                bert_score = get_bert_score(prediction['text-label'], ground_truth['text-label'])
+            else:
+                bert_score = 0
+            scores.append(bert_score)
+    task_score = np.mean(scores)
     return task_score
 
 

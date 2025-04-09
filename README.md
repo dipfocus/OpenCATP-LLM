@@ -9,9 +9,10 @@ What is *OpenCATP*?: OpenCATP is the first platform to evaluate the performance 
 TODO List:
 
 - [x] Release OpenCATP.
-- [ ] Release CATP-LLM.
-  - [x] Release Training Codes
-  - [ ] Release Testing Codes
+- [x] Release CATP-LLM.
+  - [x] Release Training Codes.
+  - [x] Release Testing Codes.
+- [x] Test codes.
 - [ ] Release model weights of CATP-LLM (after acceptance).
 
 ## Getting Started
@@ -26,9 +27,9 @@ TODO List:
 
 3. On the first run, tools and HF models will be dynamically downloaded to the `hf_cache` path specified in the config. For tasks using GitHub-based models, please refer to the corresponding subdirectory’s README (or check the runtime error messages) to download the model weights and place them in the specified folder.
 
-4. Please configure the config manually or place the dataset under `./dataset`. The dataset can be obtained from [this link](https://drive.google.com/file/d/1wmxcp-rdxdPgS2UxTXvnQsFgOsrEfmVI/view?usp=drive_link).
+4. Please configure the config manually or place the dataset under `./dataset`. The dataset can be obtained from [this link](https://drive.google.com/file/d/1mbrBdA0xu_dzwCzDAIAC1dlyEa5vVKWq/view?usp=drive_link).
 
-5. For a simple test case, see `test.py`.
+5. For a simple test case, see `test_opencatp.py`.
 
 ## Source Code
 
@@ -57,13 +58,7 @@ The main code is located in the `src` directory:
 └── utils.py
 ```
 
-Key issues:
-
-- There are `TODO` parts in the code.
-- The metric for an invalid plan.
-- Challenges in collecting results from complex non-sequential tasks.
-
-Below is an example of key code sections (most of it is AI-based. **Due to the debug-oriented architecture, some delayed circular references haven’t been fixed yet, so documentation generation is currently not possible**).
+Below is an example of key code sections.
 
 ## 1. `src/plan/plan.py`
 

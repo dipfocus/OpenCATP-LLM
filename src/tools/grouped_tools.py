@@ -141,7 +141,7 @@ class SentimentAnalysisTools(GroupedTools):
                     # Grab the argmax of probabilities
                     pred_ids = torch.argmax(probabilities, dim=1)
                     pred_labels = [model.config.id2label[p.item()] for p in pred_ids]
-                    new_data = {"text": pred_labels}
+                    new_data = {"text-label": pred_labels}
 
                     updated_data = input_data.copy()
                     updated_data.update(new_data)
@@ -180,9 +180,14 @@ class MachineTranslationTools(GroupedTools):
                 def process(
                         input_data: DataIncludeText, device: str
                 ) -> DataIncludeText:
+                    text_key = 'text'
+                    for input_key in input_data.keys():
+                        if 'text' in input_key:
+                            text_key = input_key
+                            break
                     text_batch = [
                         "translate English to German: " + sentence
-                        for sentence in input_data["text"]
+                        for sentence in input_data[text_key]
                     ]
                     inputs = tokenizer(
                         text_batch, return_tensors="pt", padding=True, truncation=True
@@ -197,7 +202,7 @@ class MachineTranslationTools(GroupedTools):
                         tokenizer.decode(output, skip_special_tokens=True)
                         for output in model_output
                     ]
-                    new_data = {"text": translated_text}
+                    new_data = {text_key: translated_text}
 
                     updated_data = input_data.copy()
                     updated_data.update(new_data)
@@ -245,7 +250,7 @@ class ImageClassificationTools(GroupedTools):
                     predicted_labels = [
                         model.config.id2label[idx.item()] for idx in predicted_ids
                     ]
-                    new_data = {"text": predicted_labels}
+                    new_data = {"text-label": predicted_labels}
 
                     updated_data = input_data.copy()
                     updated_data.update(new_data)
@@ -315,7 +320,7 @@ class ObjectDetectionTools(GroupedTools):
                             output += ", "
                         predicted_results.append(output[:-2])
 
-                    new_data = {"object_detection_information": final_outputs, 'text': predicted_results}
+                    new_data = {"object_detection_information": final_outputs, 'text-object': predicted_results}
                     updated_data = input_data.copy()
                     updated_data.update(new_data)
                     return updated_data
@@ -656,7 +661,7 @@ class ImageCaptioningTools(GroupedTools):
                     preds = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
                     captions = [p.strip() for p in preds]
 
-                    new_data = {"text": captions}
+                    new_data = {"text-caption": captions}
                     updated_data = input_data.copy()
                     updated_data.update(new_data)
                     return updated_data

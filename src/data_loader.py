@@ -1,4 +1,5 @@
 import os
+import platform
 from collections import defaultdict
 from typing import Dict, List
 
@@ -29,6 +30,7 @@ class TaskDataset(Dataset):
         :param task_id: An integer identifying which task's data to load.
         """
         # For example: data_path/task_id
+        self.task_id = task_id
         self.task_data_path = os.path.join(data_path, str(task_id))
         self._load_data()
 
@@ -57,18 +59,27 @@ class TaskDataset(Dataset):
         return result
 
     @staticmethod
-    def _load_text(file_path: str) -> Dict[SampleID, Dict[str, TextContent]]:
+    def _load_text(file_path: str, sequential=True) -> Dict[SampleID, Dict[str, TextContent]]:
         """
         Load text lines from a .txt file.
         Each line is mapped to a sample ID based on line-order (0-based).
         """
+        # for non-sequential tasks, there may exist multiple textual ground truths.
+        # so we need to distingush them.
+        if sequential:
+            key_postfix = ''
+        else:
+            if platform.system() == 'Windows':
+                key_postfix = '-' + file_path.split('\\')[-1][:-4].split('-')[0]
+            else:
+                key_postfix = '-' + file_path.split('/')[-1][:-4].split('-')[0]
         result = {}
         with open(file_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
             for idx, line in enumerate(lines):
                 sample_id: SampleID = idx
                 result[sample_id] = {
-                    'text': line.strip()
+                    'text' + key_postfix: line.strip()
                 }
         return result
 
@@ -84,7 +95,7 @@ class TaskDataset(Dataset):
             if item == 'images':
                 file_data = self._load_images(item_full_path)
             elif item.endswith('.txt'):
-                file_data = self._load_text(item_full_path)
+                file_data = self._load_text(item_full_path, sequential=self.task_id < 200)
             else:
                 raise ValueError(f"Unknown file type or directory: {item_full_path}")
 

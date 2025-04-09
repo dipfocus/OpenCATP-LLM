@@ -1,10 +1,18 @@
+"""
+Claim: Some tool cost-related setups in this file may vary on different hardware devices.
+For instance, in GlobalMetricConfig, we provide the information of memory consumption of tools.
+This information was measured on our GPU server with two 32GB V100.
+This information may be different on other GPU servers.
+"""
 import os
 import sys
+import json
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Dict, Literal, Optional
 from loguru import logger as log
 from .types import TaskName, ModelName
+
 
 current_file_path = os.path.abspath(__file__)
 src_dir = os.path.dirname(current_file_path)
@@ -40,18 +48,23 @@ class GlobalPathConfig:
 
 @dataclass
 class GlobalTaskConfig:
-    default_train_tasks = [
-        1, 4, 5, 6, 7, 9, 12, 13, 14, 19, 20, 23, 24, 25, 26, 30, 31, 32, 33, 34, 35, 36, 37, 38, 40, 41, 43, 44, 46,
-        47, 48, 50, 51, 52, 53, 54, 56, 57, 59, 60, 63, 64, 65, 67, 68, 71, 72, 73, 74, 77, 79, 80, 81, 82, 83, 85, 86,
-        87, 88, 90, 91, 92, 94, 95, 97, 98, 99, 101, 103, 114, 112, 107,
+    default_train_seq_tasks = [
+        1, 2, 3, 4, 5, 7, 9, 10, 11, 14, 15, 16, 17, 18, 19, 22, 23, 24, 25, 
+        26, 27, 28, 29, 30, 32, 33, 34, 35, 37, 38, 39, 41, 42, 43, 44, 45, 
+        47, 48, 49, 50, 52, 53, 54, 55, 56, 57, 58, 59, 60, 63, 64, 65, 66, 
+        67, 68, 70, 71, 72, 73, 75, 76, 77, 79, 80, 82, 83, 84, 85, 86,
     ]
-    default_eval_tasks = [
-        2, 3, 11, 15, 17, 21, 22, 28, 42, 58, 61, 66, 69, 70, 78, 100, 102, 104, 109,
+    default_test_seq_tasks = [
+        0, 6, 8, 12, 13, 20, 21, 31, 36, 40, 46, 51, 61, 62, 69, 74, 78, 81,
     ]
-    default_test_tasks = [
-        0, 8, 10, 16, 18, 27, 29, 39, 45, 49, 55, 62, 75, 76, 84, 89, 93, 96, 108, 110, 111,
+    default_train_nonseq_tasks = [
+        201, 206, 208, 210, 211, 213, 214, 216, 217, 220, 222, 223,
     ]
-
+    default_test_nonseq_tasks = [
+        200, 202, 203, 204, 205, 207, 209, 212, 215, 218, 219, 221,
+    ]
+    default_test_task_samples = json.load(open(os.path.join(GlobalPathConfig.data_path, 'test_task_samples.json'), 'r'))
+    
 
 @dataclass
 class GlobalMetricsConfig:
@@ -72,14 +85,14 @@ class GlobalMetricsConfig:
         "image_denoising": 1690.15625,
         "image_super_resolution": 1540.8515625,
         "image_captioning": 2449.8359375,
-        "text_to_image": 6746.109375,
-        "visual_question_answering": 1953.0234375,
+        "text_to_image": 6746.109375,  # not used in the current OpenCATP, leave for possible use in the future
+        "visual_question_answering": 1953.0234375,  # not used in the current OpenCATP, leave for possible use in the future
         "sentiment_analysis": 1719.6875,
-        "question_answering": 1696.2734375,
+        "question_answering": 1696.2734375,  # not used in the current OpenCATP, leave for possible use in the future
         "text_summarization": 3321.2578125,
-        "text_generation": 1937.03125,
+        "text_generation": 1937.03125,  # not used in the current OpenCATP, leave for possible use in the future
         "machine_translation": 2388.72265625,
-        "mask_filling": 1712.41796875,
+        "mask_filling": 1712.41796875,  # not used in the current OpenCATP, leave for possible use in the future
     }
     tools_gpu_long_term_mem = {
         "image_classification": 330.2294921875,
@@ -355,9 +368,6 @@ class GlobalToolConfig:
         'text_summarization': [0.4399955272843922, 0.44162034375878384, 0.47984100235254135, 0.4836095130016943],
         'text_to_image': [30.41944787973723, 30.44826792797344, 30.441494159301133, 30.410528955212857],
         'visual_question_answering': [0.004567494635659777, 0.004190168623573798, 0.005081711239834369, 0.009299321594933435]}
-    
-    # tool_prices_file = os.path.join(src_dir, 'catpllm/data/training_data/all_tools_prices.pkl')
-    # tool_prices = pickle.load(open(tool_prices_file, 'rb')) if os.path.exists(tool_prices_file) else None
 
 
 @dataclass
