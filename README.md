@@ -15,6 +15,8 @@ TODO List:
 - [x] Test codes.
 - [ ] Release model weights of CATP-LLM (after acceptance).
 
+We will keep updating this repo following the TODO list. This may take some time. Please stay tuned! :)
+
 ## Getting Started
 
 1. Install Python (recommended version >= 3.11.9).
