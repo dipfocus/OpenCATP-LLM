@@ -2,7 +2,7 @@
 
 Hi! This is the official codebase of CATP-LLM and OpenCATP of the paper ``CATP-LLM: Empowering Large Language Models for Cost-Aware Tool Planning''.
 
-What is *CATP-LLM*?: CATP-LLM is the first framework that enables the LLMs to effectively balance the trade-off between task performance and execution costs (e.g., tool execution time) during tool planning or using.
+What is *CATP-LLM*?: CATP-LLM is the first framework that enables the LLMs to effectively balance the trade-off between task performance and execution costs (e.g., tool execution time) during tool planning or tool using.
 
 What is *OpenCATP*?: OpenCATP is the first platform to evaluate the performance of LLMs in cost-aware tool planning, which features diverse tools and difficult tasks, as well as a comprehensive scheme to measure the tool execution costs.
 
@@ -17,6 +17,14 @@ TODO List:
 
 We will keep updating this repo following the TODO list. This may take some time. Please stay tuned! :)
 
+
+## Content
+
+- [Getting Started](##Getting-Started)
+- [Source Code](##Source-Code)
+  - [Part 1: OpenCATP](###Part-1:-OpenCATP)
+  - [Part 2: CATP-LLM](###Part-2:CATP-LLM)
+- [How to add new baselines to this repo?](##How-to-add-new-baselines-to-this-repo?)
 ## Getting Started
 
 1. Install Python (recommended version >= 3.11.9).
@@ -31,12 +39,32 @@ We will keep updating this repo following the TODO list. This may take some time
 
 4. Please configure the config manually or place the dataset under `./dataset`. The dataset can be obtained from [this link](https://drive.google.com/file/d/1mbrBdA0xu_dzwCzDAIAC1dlyEa5vVKWq/view?usp=drive_link).
 
-5. For a simple test case, see `test_opencatp.py`.
+5. For a simple test case of running OpenCATP, please run:
+    ```sh 
+    python test_opencatp.py
+    ```
+6. For a simple case of running CATP-LLM, please run:
+    ```sh 
+    python run_catpllm.py --config_file src/catpllm/data/config_data/default_debug.yaml
+    ```
+7. If you want to run CATP-LLM on sequential or non-sequential tasks in OpenCATP, please run:
+    ```sh 
+    # sequential tasks
+    python run_catpllm.py --config_file src/catpllm/data/config_data/default_seq.yaml
+    # non-sequential tasks
+    python run_catpllm.py --config_file src/catpllm/data/config_data/default_nonseq.yaml
+    ```
+    You can customize your own settings by modifying the .yaml file.
+
+**NOTE:** It is recommended to configure the several paths specificied in `src/config.GlobalPathConfig` before running this repo. It is also recommended to use soft links for path configuration.
 
 ## Source Code
 
-The main code is located in the `src` directory:
+The main codes are placed in the `src` directory:
 
+### Part 1: OpenCATP
+
+The main codes of OpenCATP are listed below:
 ```
 ./src
 ├── config.py
@@ -60,11 +88,11 @@ The main code is located in the `src` directory:
 └── utils.py
 ```
 
-Below is an example of key code sections.
+Some key codes are explained as follows.
 
-## 1. `src/plan/plan.py`
+#### 1. `src/plan/plan.py`
 
-### Main Class
+#### Main Class
 
 #### `Plan`
 
@@ -120,9 +148,9 @@ Below is an example of key code sections.
       - **Parameter**
         - `clean_tools`: Whether to call `clean_tools()` first.
 
-## 2. `src/plan_graph.py`
+#### 2. `src/plan_graph.py`
 
-### Main Class
+#### Main Class
 
 #### `PlanGraph`
 
@@ -211,9 +239,9 @@ Below is an example of key code sections.
 
 ------
 
-## 3. `src/tool/tool.py`
+#### 3. `src/tool/tool.py`
 
-### Main Class
+#### Main Class
 
 #### `Tool`
 
@@ -252,9 +280,9 @@ Below is an example of key code sections.
 
 ------
 
-## 4. `src/tool/tool_manager.py`
+#### 4. `src/tool/tool_manager.py`
 
-### Main Class
+#### Main Class
 
 #### `ToolManager`
 
@@ -284,9 +312,9 @@ Below is an example of key code sections.
 
 ------
 
-## 5. `src/dataloader.py`
+#### 5. `src/dataloader.py`
 
-### Main Class
+#### Main Class
 
 #### `TaskDataset`
 
@@ -323,3 +351,64 @@ Below is an example of key code sections.
   7. `__len__() -> int`  
      - **Function**  
        Returns the number of samples in the dataset.
+
+### Part 2: CATP-LLM
+
+The main codes of CATP-LLM are listed below:
+
+```
+./src
+├── catpllm
+│   ├── data 
+│   |   ├── config_data
+│   |   ├── training_data
+│   |   ├── plan_dataset.py
+│   |   ├── plan_pool.py
+│   ├── model
+│   |   ├── llm
+│   |   ├── __init__.py
+│   |   ├── offline_rl.py
+│   |   ├── prompt.py
+│   |   ├── token_encoder.py
+│   |   ├── tokens.py
+│   ├── pipeline
+│   |   ├── inference.py
+│   |   ├── test.py
+│   |   ├── train.py
+│   ├── utils
+│   |   ├── cost_utils.py
+│   |   ├── llm_utils.py
+│   |   ├── utils.py
+├── run_catpllm.py
+```
+Some key code directory or files are explained as follows.
+#### 1. `data`
+This directory stores the CATP-LLM related data or data processing codes.
+- `config_data`: Store the configuration files of running CATP-LLM.
+- `training_data`: Store the data files of training CATP-LLM on sequential or non-sequential tasks.
+- `plan_pool.py`: Implement a class `PlanPool` to store the plans for training CATP-LLM.
+- `plan_dataset.py`: Implement a class `PlanDataset` to wrap the `PlanPool` for training CATP-LLM.
+
+#### 2. `model`
+This directory stores the key modules of CATP-LLM.
+- `llm`: Store the codes of LLMs. Most of them are copied from Huggingface Transformer.
+- `tokens.py`: Implement the tool and dependency tokens of CATP-LLM.
+- `token_encoder.py`: Implement the token encoder  of CATP-LLM to encode tool and dependency tokens. 
+- `prompt.py`: Store the prompts of CATP-LLM.
+- `offline_rl.py`: Implement the offline RL policy model of CATP-LLM.
+
+#### 3. `pipeline`
+This directory stores the key pipelines of CATP-LLM.
+- `train.py`: Implement the training pipeline of CATP-LLM.
+- `inference.py`: Implement the inference pipeline of CATP-LLM to generate a tool plan.
+- `test.py`: Implement the testing pipeline of CATP-LLM, which calls the `inference.py` to generate tool plans and evaluate them.
+
+## How to add new baselines to this repo?
+Basically, there are simply three steps to add a new baseline to this repo:
+1. Create a new directory `src/your_baseline`, and place all the codes related to this baseline in this directory, just like `src/captllm`.
+2. Write a function to transform the tool plan format of your baseline into the OpenCATP format. 
+
+   OpenCATP describes a tool plan in the form of `[Tool A, [Dependency of Tool A], Tool B, [Dependency of Tool B], ...]`. To be compatible with the codes of OpenCATP, you need to make sure the tool plans generated by your baseline follow this format. Please refer to `src/catpllm/utils/utils.token_plan_to_opencatp_plan` for how to write this transformation function.
+
+3. Write a new entry file `run_your_baseline.py` for running your baseline, just like `run_catpllm.py`.
+
