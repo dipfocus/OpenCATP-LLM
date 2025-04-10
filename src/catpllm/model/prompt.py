@@ -2,10 +2,6 @@ INSTRUCTION_PROMPT = "Your role is to serve as a policy model that given a task 
     "determines the execution plan of tools that can be executed in sequential or parallel to solve the task. "\
     "Your goal is to generate the tool plans that can optimize the task performance while minimizing the execution costs.\n"\
 
-TOOL_PROMPT = "The following are the embedding features of each tool. Each tool has its own functionality. "\
-    "Executing a tool will incur some costs in terms of execution prices in US dollar. "\
-    "Besides, the costs of each tool may vary based on the size of inputs.\n"
-
 TOOL_PROMPT2_P1 = "Each tool has its own functionality. "\
     "Executing a tool will incur some execution costs. " \
     "Besides, the costs of each tool may vary based on the size of inputs. " \

@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from collections import deque
 from enum import Enum
 from src.config import GlobalToolConfig, DEFAULT_START_TASK_NAME
-from src.catpllm.model.prompt import INSTRUCTION_PROMPT, TOOL_PROMPT, TASK_PROMPT, TOOL_PROMPT2_P1, TOOL_PROMPT2_P2
+from src.catpllm.model.prompt import INSTRUCTION_PROMPT, TASK_PROMPT, TOOL_PROMPT2_P1, TOOL_PROMPT2_P2
 from src.catpllm.utils.utils import find_sink_nodes_in_plan
 
 
@@ -215,7 +215,6 @@ class OfflineRLPolicy(nn.Module):
             max_ep_len=100,  # max episode length (= max number of tool and dependency tokens that can be generated)
             device='cuda' if torch.cuda.is_available() else 'cpu',
             device_out = None,
-            use_new_prompt=False,
             disable_context_aug=False,
             disable_masking=False,
             **kwargs
@@ -236,13 +235,11 @@ class OfflineRLPolicy(nn.Module):
         self.max_ep_len = max_ep_len
         self.device = device
         self.device_out = device_out
-        self.use_new_prompt = use_new_prompt
         self.disable_context_aug = disable_context_aug
         self.disable_masking = disable_masking
 
         # ========== prompt/token special ==========
         self.instruction_prompt_embed = self.llm_vocab(torch.tensor(self.tokenizer(INSTRUCTION_PROMPT).input_ids, dtype=torch.int64, device=device))
-        self.tool_prompt_embed = self.llm_vocab(torch.tensor(self.tokenizer(TOOL_PROMPT).input_ids, dtype=torch.int64, device=device))
         self.tool_prompt2_p1_embed = self.llm_vocab(torch.tensor(self.tokenizer(TOOL_PROMPT2_P1).input_ids, dtype=torch.int64, device=device))
         self.tool_prompt2_p2_embed = self.llm_vocab(torch.tensor(self.tokenizer(TOOL_PROMPT2_P2).input_ids, dtype=torch.int64, device=device))
         self.all_tool_tokens = torch.tensor(list(GlobalToolConfig.tool_token_vocabulary.values()), dtype=torch.int64, device=device)
@@ -313,21 +310,12 @@ class OfflineRLPolicy(nn.Module):
         task_prompt = TASK_PROMPT.replace('[Task Specification]', str(task_info))
         task_prompt = task_prompt.replace('[Task Input Attributes]', str(sample_info))
         task_prompt_embed = self.llm_vocab(torch.tensor(self.tokenizer(task_prompt).input_ids, dtype=torch.int64, device=self.device))
-        if self.use_new_prompt:
-            if not self.disable_context_aug:
-                tool_embed_pure = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=False)
-                tool_embed_with_cost = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=True)
-                prompt_embed = torch.cat([self.instruction_prompt_embed.detach(), self.tool_prompt2_p1_embed.detach(), tool_embed_pure,
-                                        self.tool_prompt2_p2_embed.detach(), tool_embed_with_cost, task_prompt_embed], dim=0).unsqueeze(0).to(self.device)
-            else:
-                tool_embed_pure = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=False)
-                prompt_embed = torch.cat([self.instruction_prompt_embed.detach(), self.tool_prompt2_p1_embed.detach(), tool_embed_pure,
-                                        self.tool_prompt2_p2_embed.detach(), task_prompt_embed], dim=0).unsqueeze(0).to(self.device)
-        else:
-            tool_embed = self.token_encoder(self.all_tool_tokens, sample_size)
-            prompt_embed = torch.cat([self.instruction_prompt_embed.detach(), self.tool_prompt_embed.detach(), tool_embed,
-                                    task_prompt_embed], dim=0).unsqueeze(0).to(self.device)
-
+            
+        tool_embed_pure = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=False)
+        tool_embed_with_cost = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=True)
+        prompt_embed = torch.cat([self.instruction_prompt_embed.detach(), self.tool_prompt2_p1_embed.detach(), tool_embed_pure,
+                                self.tool_prompt2_p2_embed.detach(), tool_embed_with_cost, task_prompt_embed], dim=0).unsqueeze(0).to(self.device)
+            
         # Step 3: process states, turn them into embeddings.
         state_embeddings = []
         for i in range(len(states[0])):
@@ -419,20 +407,12 @@ class OfflineRLPolicy(nn.Module):
             task_prompt = TASK_PROMPT.replace('[Task Specification]', str(task_info))
             task_prompt = task_prompt.replace('[Task Input Attributes]', str(sample_info))
             task_prompt_embed = self.llm_vocab(torch.tensor(self.tokenizer(task_prompt).input_ids, dtype=torch.int64, device=self.device))
-            if self.use_new_prompt:
-                if not self.disable_context_aug:
-                    tool_embed_pure = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=False)
-                    tool_embed_with_cost = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=True)
-                    prompt_embed = torch.cat([self.instruction_prompt_embed.detach(), self.tool_prompt2_p1_embed.detach(), tool_embed_pure,
-                                            self.tool_prompt2_p2_embed.detach(), tool_embed_with_cost, task_prompt_embed], dim=0).unsqueeze(0).to(self.device)
-                else:
-                    tool_embed_pure = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=False)
-                    prompt_embed = torch.cat([self.instruction_prompt_embed.detach(), self.tool_prompt2_p1_embed.detach(), tool_embed_pure,
-                                            self.tool_prompt2_p2_embed.detach(), task_prompt_embed], dim=0).unsqueeze(0).to(self.device)
-            else:
-                tool_embed = self.token_encoder(self.all_tool_tokens, sample_size)
-                prompt_embed = torch.cat([self.instruction_prompt_embed.detach(), self.tool_prompt_embed.detach(), tool_embed,
-                                        task_prompt_embed], dim=0).unsqueeze(0).to(self.device)
+                    
+            tool_embed_pure = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=False)
+            tool_embed_with_cost = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=True)
+            prompt_embed = torch.cat([self.instruction_prompt_embed.detach(), self.tool_prompt2_p1_embed.detach(), tool_embed_pure,
+                                    self.tool_prompt2_p2_embed.detach(), tool_embed_with_cost, task_prompt_embed], dim=0).unsqueeze(0).to(self.device)
+                    
             self.prompt_cache = prompt_embed.detach()
 
         # Step 4: process state
@@ -524,20 +504,12 @@ class OfflineRLPolicy(nn.Module):
             task_prompt = TASK_PROMPT.replace('[Task Specification]', str(task_info))
             task_prompt = task_prompt.replace('[Task Input Attributes]', str(sample_info))
             task_prompt_embed = self.llm_vocab(torch.tensor(self.tokenizer(task_prompt).input_ids, dtype=torch.int64, device=self.device))
-            if self.use_new_prompt:
-                if not self.disable_context_aug:
-                    tool_embed_pure = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=False)
-                    tool_embed_with_cost = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=True)
-                    prompt_embed = torch.cat([self.instruction_prompt_embed.detach(), self.tool_prompt2_p1_embed.detach(), tool_embed_pure,
-                                            self.tool_prompt2_p2_embed.detach(), tool_embed_with_cost, task_prompt_embed], dim=0).unsqueeze(0).to(self.device)
-                else:
-                    tool_embed_pure = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=False)
-                    prompt_embed = torch.cat([self.instruction_prompt_embed.detach(), self.tool_prompt2_p1_embed.detach(), tool_embed_pure,
-                                            self.tool_prompt2_p2_embed.detach(), task_prompt_embed], dim=0).unsqueeze(0).to(self.device)
-            else:
-                tool_embed = self.token_encoder(self.all_tool_tokens, sample_size)
-                prompt_embed = torch.cat([self.instruction_prompt_embed.detach(), self.tool_prompt_embed.detach(), tool_embed,
-                                        task_prompt_embed], dim=0).unsqueeze(0).to(self.device)
+                    
+            tool_embed_pure = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=False)
+            tool_embed_with_cost = self.token_encoder(self.all_tool_tokens, sample_size, fuse_cost=True)
+            prompt_embed = torch.cat([self.instruction_prompt_embed.detach(), self.tool_prompt2_p1_embed.detach(), tool_embed_pure,
+                                    self.tool_prompt2_p2_embed.detach(), tool_embed_with_cost, task_prompt_embed], dim=0).unsqueeze(0).to(self.device)
+                    
             self.prompt_cache = prompt_embed.detach()
 
         # Step 4: process state

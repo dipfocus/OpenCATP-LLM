@@ -4,7 +4,7 @@ llm: opt-350m  # llm type
 rank: 64  # lora rank, -1 means no lora
 context_len: 10  # context length
 
-train: false
+train: true
 test: true
 
 train_plan_pool: src/catpllm/data/training_data/seq_plan_pool.pkl  # training plan pool
@@ -27,7 +27,7 @@ scheduled_sampling_rate: 0.1  # The rate for scheduled sampling, a common method
 scale: 1  # scale up reward
 seed: 42
 
-test_task_list: [0, 8, 10, 16, 18, 27, 29]
-target_return_scale: 1.0
+test_task_list: [0, 8]
+target_return_scale: 1.0  # target return, which specifies the expected performance for the model to achieve
 
 load_model_dir: null
