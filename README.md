@@ -20,12 +20,12 @@ We will keep updating this repo following the TODO list. This may take some time
 
 ## Content
 
-- [Getting Started](##Getting-Started)
-- [Source Code](##Source-Code)
-  - [Part 1: OpenCATP](###Part-1:-OpenCATP)
-  - [Part 2: CATP-LLM](###Part-2:CATP-LLM)
-- [How to add new baselines to this repo?](##How-to-add-new-baselines-to-this-repo?)
-## Getting Started
+- [Getting Started](#getting-started)
+- [Source Code](#source-code)
+  - [Part 1: OpenCATP](#part-1-opencatp)
+  - [Part 2: CATP-LLM](#part-2-catp-llm)
+- [How to add new baselines to this repo?](#how-to-add-new-baselines-to-this-repo)
+## Getting Started 
 
 1. Install Python (recommended version >= 3.11.9).
 
