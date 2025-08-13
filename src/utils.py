@@ -9,7 +9,7 @@ from src.plan.plan_graph import PlanGraph
 from src.types import TaskName
 
 
-def get_available_device(device_list):
+def get_available_device(device_list: list[str]) -> str:
     """
     Return the first device in the list that has enough free memory.
     If none, return "cpu".
@@ -21,10 +21,32 @@ def get_available_device(device_list):
         str: The device name that has enough free memory or "cpu".
     """
 
-    def qualifies(device):
-        free_mem, _ = torch.cuda.mem_get_info(torch.device(device))
-        return free_mem > TOOL_GPU_MEMORY_ALLOC_LIMIT
+    def qualifies(device: str) -> bool:
+        """
+        Check if the device has enough GPU memory
+        
+        Args:
+            device: Device name, e.g., 'cuda:0'
+            
+        Returns:
+            bool: True if device has enough memory, False otherwise
+        """
+        # Check if CUDA is available before trying to use CUDA functions
+        if not torch.cuda.is_available():
+            return False
+        
+        try:
+            free_mem, _ = torch.cuda.mem_get_info(torch.device(device))
+            return free_mem > TOOL_GPU_MEMORY_ALLOC_LIMIT
+        except (AssertionError, RuntimeError) as e:
+            # Handle cases where CUDA is not properly initialized or available
+            print(f"Warning: Failed to get CUDA memory info for device {device}: {e}")
+            return False
 
+    # If CUDA is not available, return "cpu" immediately
+    if not torch.cuda.is_available():
+        return "cpu"
+    
     return next((d for d in device_list if qualifies(d)), "cpu")
 
 
